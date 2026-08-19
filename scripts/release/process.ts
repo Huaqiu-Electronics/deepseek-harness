@@ -33,7 +33,7 @@ export interface CommandResult {
  * @returns The exit status and captured streams.
  */
 export function attempt(command: string, args: readonly string[], options: RunOptions = {}): CommandResult {
-  const result = spawnSync(command, [...args], { cwd: options.cwd, env: options.env, encoding: 'utf8' })
+  const result = spawnSync(command, [...args], { cwd: options.cwd, env: options.env, encoding: 'utf8' , shell: process.platform === 'win32' })
   if (result.error !== undefined) throw result.error
   return { status: result.status, stdout: result.stdout, stderr: result.stderr }
 }
@@ -65,7 +65,7 @@ export function attemptEchoed(command: string, args: readonly string[], options:
     // 'inherit' would leave nothing to capture, so the streams are piped and
     // echoed instead.
     stdio: ['inherit', 'pipe', 'pipe'],
-  })
+    shell: process.platform === 'win32' })
   if (result.error !== undefined) throw result.error
   if (result.stdout !== '') process.stdout.write(result.stdout)
   if (result.stderr !== '') process.stderr.write(result.stderr)
@@ -95,7 +95,7 @@ export function capture(command: string, args: readonly string[], options: RunOp
  * @param options - working directory and environment.
  */
 export function run(command: string, args: readonly string[], options: RunOptions = {}): void {
-  const result = spawnSync(command, [...args], { cwd: options.cwd, env: options.env, stdio: 'inherit' })
+  const result = spawnSync(command, [...args], { cwd: options.cwd, env: options.env, stdio: 'inherit' , shell: process.platform === 'win32' })
   if (result.error !== undefined) throw result.error
   if (result.status !== 0) throw new Error(`${command} ${args.join(' ')} exited with ${String(result.status)}`)
 }
