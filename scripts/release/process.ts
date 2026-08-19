@@ -29,7 +29,7 @@ export interface CommandResult {
  * @returns The exit status and captured streams.
  */
 export function attempt(command: string, args: readonly string[], options: RunOptions = {}): CommandResult {
-  const result = spawnSync(command, [...args], { cwd: options.cwd, env: options.env, encoding: 'utf8' })
+  const result = spawnSync(command, [...args], { cwd: options.cwd, env: options.env, encoding: 'utf8' , shell: process.platform === 'win32' })
   if (result.error !== undefined) throw result.error
   return { status: result.status, stdout: result.stdout, stderr: result.stderr }
 }
@@ -48,7 +48,7 @@ export function attemptEchoed(command: string, args: readonly string[], options:
     env: options.env,
     encoding: 'utf8',
     stdio: ['inherit', 'pipe', 'pipe'],
-  })
+    shell: process.platform === 'win32' })
   if (result.error !== undefined) throw result.error
   if (result.stdout !== '') process.stdout.write(result.stdout)
   if (result.stderr !== '') process.stderr.write(result.stderr)
@@ -72,8 +72,9 @@ export function capture(command: string, args: readonly string[], options: RunOp
 
 /**
  * Run a command with inherited streams without blocking the event loop, so a
- * caller can hold several commands in flight, and fail on a non-zero exit.
- * Concurrent children interleave their output at line granularity.
+ * caller can hold several commands in flight. Concurrent children interleave
+ * their output at line granularity, and the returned promise rejects on a
+ * non-zero exit.
  * @param command - executable name.
  * @param args - command arguments.
  * @param options - working directory and environment.
@@ -81,11 +82,20 @@ export function capture(command: string, args: readonly string[], options: RunOp
  */
 export function runConcurrent(command: string, args: readonly string[], options: RunOptions = {}): Promise<void> {
   return new Promise((resolveRun, rejectRun) => {
-    const child = spawn(command, [...args], { cwd: options.cwd, env: options.env, stdio: 'inherit' })
+    const child = spawn(command, [...args], {
+      cwd: options.cwd,
+      env: options.env,
+      stdio: 'inherit',
+      shell: process.platform === 'win32',
+    })
+
     child.once('error', rejectRun)
     child.once('close', (status, signal) => {
-      if (status === 0) resolveRun()
-      else rejectRun(new Error(`${command} ${args.join(' ')} exited with ${String(status ?? signal)}`))
+      if (status === 0) {
+        resolveRun()
+      } else {
+        rejectRun(new Error(`${command} ${args.join(' ')} exited with ${String(status ?? signal)}`))
+      }
     })
   })
 }
