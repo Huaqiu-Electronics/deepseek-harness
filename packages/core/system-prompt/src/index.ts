@@ -9,6 +9,7 @@ import z from '@deepseek-ai/schemastery'
 import { AnonymousEntries, NamedEntries, ScopedLayers, scopeTarget } from '@deepseek-ai/dsh-scope'
 import type { ScopeKey, ScopeLayer, Scoped } from '@deepseek-ai/dsh-scope'
 import type { ContextSnapshotSection, ToolSchema } from '@deepseek-ai/dsh-llm'
+import { EDA_AGENT_PROMPT } from './eda_agent_prompt'
 
 declare module '@deepseek-ai/cordis' {
   interface Context {
@@ -409,7 +410,8 @@ export class SystemPrompt extends Service {
       this.section({
         name: 'harness:identity',
         order: this.getSectionOrder('HARNESS_IDENTITY'),
-        text: 'You are an AI agent powered by DeepSeek Harness.',
+        text: 'You are an AI agent powered by DeepSeek Harness.\n\n' +
+  EDA_AGENT_PROMPT.trim(),
       })
     }
     this.section({
