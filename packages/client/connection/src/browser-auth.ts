@@ -66,12 +66,16 @@ function header(
   return typeof value === 'string' ? value : undefined
 }
 
-/** Canonical request authority used as the cookie name and signed audience. */
+/** Canonical request authority used as the cookie name and signed audience.
+ *  Normalized to the hostname (port stripped): browser cookies are stored per
+ *  domain regardless of port, so a port-bearing authority would mint one
+ *  cookie per server port and accumulate unbounded browser state across
+ *  launches that allocate fresh ports (see docs/issues/dsh-431-header-too-large.md). */
 function requestAuthority(headers: ConnectionTrustRequest['headers']): string | undefined {
   const host = header(headers, 'host')
   if (host === undefined) return undefined
   try {
-    return new URL(`http://${host}`).host
+    return new URL(`http://${host}`).hostname
   } catch {
     return undefined
   }
