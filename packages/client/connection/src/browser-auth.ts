@@ -75,13 +75,16 @@ function header(
   return typeof value === 'string' ? value : undefined
 }
 
-/** Protocol-scoped cookie audience; HTTP retains its existing authority-only spelling. */
-function requestAudience(headers: ConnectionTrustRequest['headers'], secure: boolean): string | undefined {
+/** Canonical request authority used as the cookie name and signed audience.
+ *  Normalized to the hostname (port stripped): browser cookies are stored per
+ *  domain regardless of port, so a port-bearing authority would mint one
+ *  cookie per server port and accumulate unbounded browser state across
+ *  launches that allocate fresh ports (see docs/issues/dsh-431-header-too-large.md). */
+function requestAuthority(headers: ConnectionTrustRequest['headers'], _secure: boolean): string | undefined {
   const host = header(headers, 'host')
   if (host === undefined) return undefined
   try {
-    const url = new URL(`${secure ? 'https:' : 'http:'}//${host}`)
-    return secure ? url.origin : url.host
+    return new URL(`http://${host}`).hostname
   } catch {
     return undefined
   }
