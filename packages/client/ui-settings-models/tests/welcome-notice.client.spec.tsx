@@ -93,6 +93,7 @@ function mount(version?: string) {
     usePanelInfo, useResource,
     useWorkspaces: unusedHook,
     controller,
+    t: key => en[key],
     useWelcome: bindSnapshotSelector(controller.store),
   }
   return { ...render(<WelcomeNotice {...props} />), complete, controller, mirror, mutate, appRoot }
