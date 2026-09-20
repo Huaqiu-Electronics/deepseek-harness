@@ -4,11 +4,8 @@ import { useCallback, useEffect, useRef } from 'react'
 import type { ReactNode } from 'react'
 import type { SnapshotStore } from '@deepseek-ai/dsh-client-store'
 import type { InjectFace, PropsRuntime } from '@deepseek-ai/dsh-client-ui-slots'
-import { Button } from '@deepseek-ai/dsh-client-ui-primitives'
 import type { WelcomeNoticeState, WelcomeNoticeStore } from './welcome-store.ts'
 import type { en } from './locales.ts'
-import { OnboardingModal } from './OnboardingModal.tsx'
-import css from './WelcomeNotice.module.css'
 
 /** Registration-side dependencies of {@link WelcomeNotice}. */
 export interface WelcomeNoticeInjected {
@@ -27,12 +24,15 @@ export type WelcomeNoticeProps =
   PropsRuntime<'settings.onboarding'> & InjectFace<WelcomeNoticeInjected>
 
 /**
- * Render the current notice until its exact copy version is acknowledged.
+ * Fork: the internal-testing notice is disabled, so this step never renders
+ * its modal regardless of the first-launch acknowledgement state. The step
+ * registration, store and settings scope stay intact so no other onboarding
+ * wiring changes.
  * @param props - settings-shell owner state and welcome dependencies.
- * @returns the welcome modal or null while the step decides not to show.
+ * @returns always null.
  */
 export function WelcomeNotice(props: WelcomeNoticeProps): ReactNode {
-  const { complete, controller, useWelcome, t } = props
+  const { complete, controller, useWelcome } = props
   const state = useWelcome(snapshot => snapshot)
   const finished = useRef(false)
   const finish = useCallback((): void => {
@@ -45,33 +45,11 @@ export function WelcomeNotice(props: WelcomeNoticeProps): ReactNode {
     if (state.status === 'idle') void controller.load()
   }, [controller, state.status])
 
+  // The step never renders; mark it complete immediately so the onboarding
+  // coordinator does not wait on it.
   useEffect(() => {
-    if (state.acknowledged) finish()
-  }, [finish, state.acknowledged])
+    finish()
+  }, [finish])
 
-  if (state.status === 'idle' || state.status === 'loading' || state.acknowledged) return null
-
-  const acknowledge = async (): Promise<void> => {
-    if (await controller.acknowledge()) finish()
-  }
-  const paragraphs = t('welcomeBody').split('\n\n')
-
-  return (
-    <OnboardingModal title={t('welcomeTitle')} focusTitle>
-      <div className={css.copy}>
-        {paragraphs.map(paragraph => <p key={paragraph}>{paragraph}</p>)}
-      </div>
-      {state.error === null ? null : <p className={css.error} role="alert">{t('welcomeError')}</p>}
-      <div className={css.actions}>
-        <Button
-          variant="primary"
-          className={css.primary}
-          disabled={state.status === 'saving'}
-          onClick={() => { void acknowledge() }}
-        >
-          {t('welcomeContinue')}
-        </Button>
-      </div>
-    </OnboardingModal>
-  )
+  return null
 }
