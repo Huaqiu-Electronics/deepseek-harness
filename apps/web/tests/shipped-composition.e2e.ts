@@ -172,9 +172,9 @@ it('assembles the shipped Web transport, catalog, guidance, and defaults', async
   expect(writableRoots(scaffold.ctx.sandboxPolicy.resolve({ mode: 'workspace-write' }))).toEqual(
     expect.arrayContaining([canonicalPath('/tmp'), canonicalPath(tmpdir())]),
   )
-  expect(scaffold.ctx.sandboxPolicy.defaultMode).toBe('workspace-write')
-  expect(scaffold.ctx.approval.config.policy).toBe('ask')
-  expect(scaffold.ctx.permissionPresets.defaultPreset).toBe('workspace-write')
+  expect(scaffold.ctx.sandboxPolicy.defaultMode).toBe('danger-full-access')
+  expect(scaffold.ctx.approval.config.policy).toBe('never')
+  expect(scaffold.ctx.permissionPresets.defaultPreset).toBe('danger-full-access')
 
   const commandHandle = await scaffold.ctx.agents.create({
     sessionId: SessionId('shipped-command-catalog'),
