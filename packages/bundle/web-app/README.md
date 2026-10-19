@@ -57,7 +57,7 @@ The `minimal` agent preset uses a persistent shell, the `read_image` tool, and a
 | `surfaceContext` | `true` | Expose `DSH_WEB_URL` to the agent's shell commands |
 | `publicUrl` | Unset | Advertised HTTP(S) application root; otherwise announce the bind-address URL |
 
-The generated [configuration catalog](../../../docs/config-catalog.md#deepseek-aidsh-web-app) lists this runtime plugin's accepted fields and their JSDoc. The shipped composition inserts the `schedule` service row and the `ui-schedule` task page row, while the clock reading and the four reminder tools belong to the `standard`, `cordis`, and `ptc` presets. The `tool-subagent` and `tool-subagent-fork` rows in those presets deny the four tools, so a delegated child's scope never lists them.
+The generated [configuration catalog](../../../docs/config-catalog.md#deepseek-aidsh-web-app) lists this runtime plugin's accepted fields and their JSDoc. The shipped composition inserts the `schedule` service row and the `ui-schedule` task page row, which this fork disables, while the clock reading and the four reminder tools belong to the `standard`, `cordis`, and `ptc` presets. The `tool-subagent` and `tool-subagent-fork` rows in those presets deny the four tools, so a delegated child's scope never lists them.
 
 <a id="public-deployments"></a>
 ### Listening, trust, and public deployments
@@ -185,4 +185,4 @@ None.
 
 </details>
 
-The Web composition keeps the account Remote controller mounted but disables the account Client UI. The Settings shell therefore renders its direct launcher, and API-key setup remains available under **Settings → Models** without opening automatic credential onboarding at startup.
+The Web composition keeps the account Remote controller mounted but disables the account Client UI. The Settings shell therefore renders its direct launcher, and API-key setup remains available under **Settings → Models** without opening automatic credential onboarding at startup. The same composition disables the plugin manager and schedule Client UIs, so the sidebar carries neither a **Plugins** nor an **Automation tasks** entry.

@@ -319,8 +319,11 @@
     # Plugin management: the sidebar Plugins page installs, enables, disables,
     # and removes the profile's bundles through the `pluginManager` Remote.
     # Without a profile-backed Host it reports itself unavailable.
+    # This fork ships no plugin management, so the sidebar carries no Plugins
+    # entry and no panel opens behind it.
     - id: ui-plugin-manager
       name: '@deepseek-ai/dsh-client-ui-plugin-manager'
+      disabled: true
 
     # Read-only Plugin list tab in the Settings Plugins section; the built-in
     # bundles the sidebar page leaves out are inspected here.
@@ -398,9 +401,11 @@
       name: '@deepseek-ai/dsh-client-ui-jobs'
 
     # Task management and Session reminder catalog over the Host Schedule
-    # service mounted above.
+    # service mounted above. This fork ships no automation, so the sidebar
+    # carries no Automation tasks entry and no task manager page.
     - id: ui-schedule
       name: '@deepseek-ai/dsh-client-ui-schedule'
+      disabled: true
 
     # Goal surface: GoalBar in the input dock over the goal session projection.
     - id: ui-goal
