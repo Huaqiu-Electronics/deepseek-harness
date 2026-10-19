@@ -80,11 +80,11 @@ function header(
  *  domain regardless of port, so a port-bearing authority would mint one
  *  cookie per server port and accumulate unbounded browser state across
  *  launches that allocate fresh ports (see docs/issues/dsh-431-header-too-large.md). */
-function requestAuthority(headers: ConnectionTrustRequest['headers'], _secure: boolean): string | undefined {
+function requestAudience(headers: ConnectionTrustRequest['headers'], secure: boolean): string | undefined {
   const host = header(headers, 'host')
   if (host === undefined) return undefined
   try {
-    return new URL(`http://${host}`).hostname
+    return new URL(`${secure ? 'https' : 'http'}://${host}`).hostname
   } catch {
     return undefined
   }
