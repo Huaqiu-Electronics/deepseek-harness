@@ -185,4 +185,4 @@ None.
 
 </details>
 
-The Web composition includes the account Remote controller and Account settings section.
+The Web composition keeps the account Remote controller mounted but disables the account Client UI. The Settings shell therefore renders its direct launcher, and API-key setup remains available under **Settings → Models** without opening automatic credential onboarding at startup.

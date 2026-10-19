@@ -141,8 +141,10 @@
 
     # Configuration-surface reads and writes over Typert Remote. Each method
     # reports an actionable error when its settings-domain provider is absent.
+    # This fork uses API keys only, so the Settings shell owns the launcher.
     - id: ui-settings-account
       name: '@deepseek-ai/dsh-client-ui-settings-account'
+      disabled: true
 
     - id: account-controller
       name: '@deepseek-ai/dsh-api-account-controller'
@@ -311,6 +313,8 @@
 
     - id: ui-settings-models
       name: '@deepseek-ai/dsh-client-ui-settings-models'
+      config:
+        credentialOnboarding: false
 
     # Plugin management: the sidebar Plugins page installs, enables, disables,
     # and removes the profile's bundles through the `pluginManager` Remote.
