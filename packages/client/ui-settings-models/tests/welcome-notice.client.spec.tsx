@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 import type { GlobalStandardProps } from '@deepseek-ai/dsh-client-ui-slots'
-import { act, cleanup, render, screen } from '@testing-library/react'
+import { act, cleanup, fireEvent, render, screen } from '@testing-library/react'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { allowAllAccess, bindSnapshotSelector, RemoteError } from '@deepseek-ai/dsh-client-test-runtime'
 import { Context } from '@deepseek-ai/cordis'
@@ -56,11 +56,15 @@ type AttentionSnapshot = Parameters<Parameters<WelcomeNoticeProps['useSessionSta
 const noAttention: AttentionSnapshot = new Map()
 const useSessionStatus: WelcomeNoticeProps['useSessionStatus'] = selector => selector(noAttention)
 
-function mount(version?: string) {
+function mount(
+  version?: string,
+  mutateImpl: () => Promise<unknown> = () =>
+    Promise.resolve(remoteAnswer(welcomeView({ [WELCOME_NOTICE_ACK_FIELD]: WELCOME_NOTICE_VERSION }, 1))),
+) {
   const appRoot = document.createElement('div')
   appRoot.id = 'root'
   document.body.append(appRoot)
-  const mutate = vi.fn()
+  const mutate = vi.fn(mutateImpl)
   const api = {
     settings: {
       describe: () => Promise.resolve(remoteAnswer({
@@ -93,8 +97,8 @@ function mount(version?: string) {
     useWorkspaces: unusedHook,
     ...allowAllAccess,
     controller,
-    t: key => en[key],
     useWelcome: bindSnapshotSelector(controller.store),
+    t: key => zh[key],
   }
   return { ...render(<WelcomeNotice {...props} />), complete, controller, mirror, mutate, appRoot }
 }
@@ -140,19 +144,26 @@ describe('WelcomeNotice', () => {
   it('skips itself when this exact version was already acknowledged', async () => {
     const h = mount(WELCOME_NOTICE_VERSION)
     await act(async () => {
-      await firstLaunch.mirror.load()
-      await firstLaunch.controller.load()
+      await h.mirror.load()
+      await h.controller.load()
     })
     expect(screen.queryByRole('dialog')).toBeNull()
-    expect(firstLaunch.complete).toHaveBeenCalledOnce()
+    expect(h.complete).toHaveBeenCalledOnce()
+  })
 
-    cleanup()
-    const alreadyAcknowledged = mount(WELCOME_NOTICE_VERSION)
-    await act(async () => {
-      await alreadyAcknowledged.mirror.load()
-      await alreadyAcknowledged.controller.load()
+  it('keeps the sole action disabled while saving and reports a refused write', async () => {
+    let resolveWrite!: (value: unknown) => void
+    const write = new Promise<unknown>((resolve) => { resolveWrite = resolve })
+    const h = mount(undefined, () => write)
+    await screen.findByRole('dialog')
+    const action = screen.getByRole<HTMLButtonElement>('button', { name: WELCOME_NOTICE_COPY.zh.continueLabel })
+    fireEvent.click(action)
+    expect(action.disabled).toBe(true)
+    resolveWrite({
+      ok: false,
+      error: new RemoteError('settings/rejected', 'read only', { ns: WELCOME_NOTICE_SETTINGS_NAMESPACE }),
     })
-    expect(screen.queryByRole('dialog')).toBeNull()
-    expect(alreadyAcknowledged.complete).toHaveBeenCalledOnce()
+    expect((await screen.findByRole('alert')).textContent).toBe(zh.welcomeError)
+    expect(h.complete).not.toHaveBeenCalled()
   })
 })
