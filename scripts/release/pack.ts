@@ -20,6 +20,17 @@ import { PUBLISH_ORDER_FILE, packedManifest, tarballFiles } from './tarball.ts'
 const DEFAULT_OUTPUT = 'dist/npm'
 
 /**
+ * Safest assembled command-line length (chars) for a single recursive pack on
+ * every supported OS. On Windows, Node `spawn` with `shell: true` runs the
+ * command through `cmd.exe`, whose batch-file per-line limit is 8191 chars —
+ * NOT CreateProcess's 32767. Families grow unboundedly with packages: 0.2.1's
+ * `dsh` family is 343 members ≈ 15k chars, which surfaces as "The command
+ * line is too long." on Windows only (macOS' ~1MB ARG_MAX absorbs it). Chunks
+ * are sized to keep every invocation safely under this budget.
+ */
+const MAX_SAFE_COMMAND_LINE = 7_000
+
+/**
  * Check one member's expected tarball and its published files.
  * @param family - the release family being packed.
  * @param member - the member to pack.
@@ -56,14 +67,48 @@ async function packMembers(
     return order
   }
   if (members.length === 0) return []
-  const invocation = pnpmInvocation([
+
+  // A single `pnpm pack --recursive` with every member as a `--filter` grows
+  // the assembled command line with the family size. On Windows that line is
+  // routed through cmd.exe (8191-char batch cap), so large families fail with
+  // "The command line is too long." while macOS succeeds. Split the --filter
+  // list into chunks whose FULL command line stays under the budget; non-
+  // Windows keeps a single invocation (unchanged behaviour). Each chunk still
+  // packs with pnpm's own --workspace-concurrency, so the parallel pack is
+  // preserved; chunks run sequentially so distinct pnpm processes never
+  // contend on the same workspace.
+  const fixedArgs = [
     'pack',
     '--recursive',
     `--workspace-concurrency=${String(concurrency)}`,
-    ...members.map(member => `--filter=${member.name}`),
     '--pack-destination', destination,
-  ])
-  await runConcurrent(invocation.command, invocation.args)
+  ]
+  const fixed = pnpmInvocation([...fixedArgs])
+  const fixedLength = fixed.command.length + 1 + fixed.args.join(' ').length
+  const budget = process.platform === 'win32' ? MAX_SAFE_COMMAND_LINE : Number.POSITIVE_INFINITY
+
+  const chunks: ReleaseMember[][] = []
+  let chunk: ReleaseMember[] = []
+  let chunkLength = fixedLength
+  for (const member of members) {
+    const added = `--filter=${member.name}`.length + 1
+    if (chunk.length > 0 && chunkLength + added > budget) {
+      chunks.push(chunk)
+      chunk = []
+      chunkLength = fixedLength
+    }
+    chunk.push(member)
+    chunkLength += added
+  }
+  if (chunk.length > 0) chunks.push(chunk)
+
+  for (const slice of chunks) {
+    const invocation = pnpmInvocation([
+      ...fixedArgs,
+      ...slice.map(member => `--filter=${member.name}`),
+    ])
+    await runConcurrent(invocation.command, invocation.args)
+  }
   return members.map(member => validatePackedMember(family, member, destination))
 }
 
