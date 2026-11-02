@@ -1,5 +1,5 @@
-# Patch for resuming one read-only parent over the shipped headless profile. The profile's
-# workspace-write deployment default must lose to the session override in its child.
+# Patch for resuming one read-only parent over the shipped headless profile. This scenario pins
+# a confining workspace-write deployment default, which must lose to the session override in the child.
 - id: headless-startup
   disabled: true
 

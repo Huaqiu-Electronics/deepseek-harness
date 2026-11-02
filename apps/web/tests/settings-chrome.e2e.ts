@@ -373,12 +373,12 @@ describe('web e2e: settings modal and General preferences', () => {
     }
     const existing = await createSession('settings-permission-before')
     expect(existing.snapshotEvents().find(event => event.type === 'permission/preset')?.data)
-      .toEqual({ preset: 'workspace-write' })
+      .toEqual({ preset: 'danger-full-access' })
 
     await openSettings(page, 'zh')
     const dialog = page.getByRole('dialog', { name: '设置' })
     await dialog.waitFor({ timeout: 10_000 })
-    const selector = dialog.getByRole('button', { name: '工作区内修改' })
+    const selector = dialog.getByRole('button', { name: '完全权限' })
     await selector.waitFor({ timeout: 10_000 })
     await expect.poll(() => selector.isEnabled(), { timeout: 5_000 }).toBe(true)
     await selector.click()
@@ -389,7 +389,7 @@ describe('web e2e: settings modal and General preferences', () => {
     expect(document).toContain('id: permission')
     expect(document).toContain('defaultPreset: read-only')
     expect(existing.snapshotEvents().find(event => event.type === 'permission/preset')?.data)
-      .toEqual({ preset: 'workspace-write' })
+      .toEqual({ preset: 'danger-full-access' })
 
     const created = await createSession('settings-permission-after')
     expect(created.snapshotEvents().map(event => [event.type, event.data])).toEqual([
