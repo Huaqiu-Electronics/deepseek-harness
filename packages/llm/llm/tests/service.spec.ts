@@ -1605,6 +1605,21 @@ describe('LlmRuntime', () => {
     expect(() => new LlmError(1 as never, 'RATE_LIMIT')).toThrow(/message/)
     expect(() => new LlmError('busy', 1 as never)).toThrow(/code/)
     expect(() => new LlmError('busy', 'RATE_LIMIT', { requestId: 1 as never })).toThrow(/requestId/)
+    expect(() => new LlmError('busy', 'RATE_LIMIT', { provider: '' })).toThrow(/provider/)
+    expect(() => new LlmError('busy', 'RATE_LIMIT', { providerErrorCode: '' })).toThrow(/providerErrorCode/)
+  })
+
+  it('copies provider attribution onto the serializable failure', () => {
+    const err = new LlmError('402', 'PI_AI_ERROR', {
+      provider: 'huaqiu',
+      providerErrorCode: 'insufficient_user_quota',
+    })
+    expect(err.failure).toEqual({
+      message: '402',
+      code: 'PI_AI_ERROR',
+      provider: 'huaqiu',
+      providerErrorCode: 'insufficient_user_quota',
+    })
   })
 
   it('LlmError extends the shared HarnessError base', async () => {

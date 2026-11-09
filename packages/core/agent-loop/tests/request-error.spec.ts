@@ -124,25 +124,35 @@ describe('agent/request-error', () => {
     })
   })
 
-  it('does not retry when the recovery listener fails before returning its action', async () => {
-    const adapter = new MockAdapter([fail('busy', 'RATE_LIMIT'), textResponse('unused')])
+  it('attributes terminal failures to the routed provider and keeps the payload code', async () => {
+    const providerErrorCode = 'insufficient_user_quota'
+    const adapter = new MockAdapter([() => {
+      throw new LlmError('402: {"code":"insufficient_user_quota"}', 'PI_AI_ERROR', { providerErrorCode })
+    }])
     const ctx = await harness(adapter)
-    const agent = await ctx.agentLoop.create(SessionId('request-error-recovery-failed'), {
+    const agent = await ctx.agentLoop.create(SessionId('request-error-attribution'), {
       provider: 'mock',
       model: 'mock',
     })
-    ctx.on('agent/request-error', async () => {
-      throw new Error('recovery failed')
+    const observed: LlmFailure[] = []
+    ctx.on('agent/request-error', async ({ failure }) => {
+      observed.push(failure)
     })
 
     agent.followup(createUserMessage({ content: [{ type: 'text', text: 'go' }], source: { kind: 'user' } }))
     await agent.whenIdle()
 
-    expect(adapter.requests).toHaveLength(1)
-    expect(agent.session.snapshotEvents().filter(event => event.type === 'turn/start')).toHaveLength(1)
+    // The observable recovery event and the durable turn both carry the
+    // provider that actually served the attempt plus the provider payload code.
+    expect(observed).toEqual([expect.objectContaining({ provider: 'mock', providerErrorCode })])
     expect(agent.session.snapshotEvents().find(event => event.type === 'turn/end')).toMatchObject({
       type: 'turn/end',
-      data: { reason: { kind: 'error' } },
+      data: {
+        reason: {
+          kind: 'error',
+          error: { code: 'PI_AI_ERROR', provider: 'mock', providerErrorCode },
+        },
+      },
     })
   })
 })

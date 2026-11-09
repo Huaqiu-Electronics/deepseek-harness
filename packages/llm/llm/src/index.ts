@@ -85,6 +85,10 @@ export interface LlmErrorOptions extends ErrorOptions {
   providerRetryAfterMs?: number
   /** Non-empty opaque provider request id. */
   requestId?: ProviderRequestId
+  /** Non-empty id of the provider that served the failed request. */
+  provider?: string
+  /** Non-empty provider-specific error code from the provider payload. */
+  providerErrorCode?: string
   /** Positive count of additional oldest retained image occurrences to offload; only with `IMAGE_OFFLOAD_REQUIRED`. */
   offloadImages?: number
 }
@@ -117,6 +121,14 @@ export class LlmError extends HarnessError {
       && (typeof options.requestId !== 'string' || options.requestId.length === 0)) {
       throw new Error('LlmError requestId must be a non-empty string')
     }
+    if (options?.provider !== undefined
+      && (typeof options.provider !== 'string' || options.provider.length === 0)) {
+      throw new Error('LlmError provider must be a non-empty string')
+    }
+    if (options?.providerErrorCode !== undefined
+      && (typeof options.providerErrorCode !== 'string' || options.providerErrorCode.length === 0)) {
+      throw new Error('LlmError providerErrorCode must be a non-empty string')
+    }
     super(message, code, options)
     this.name = 'LlmError'
     this.failure = Object.freeze({
@@ -125,6 +137,8 @@ export class LlmError extends HarnessError {
       ...options?.status === undefined ? {} : { status: options.status },
       ...options?.providerRetryAfterMs === undefined ? {} : { providerRetryAfterMs: options.providerRetryAfterMs },
       ...options?.requestId === undefined ? {} : { requestId: options.requestId },
+      ...options?.provider === undefined ? {} : { provider: options.provider },
+      ...options?.providerErrorCode === undefined ? {} : { providerErrorCode: options.providerErrorCode },
       ...options?.offloadImages === undefined ? {} : { offloadImages: options.offloadImages },
     })
   }

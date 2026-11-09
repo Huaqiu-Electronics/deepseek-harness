@@ -146,6 +146,18 @@ export interface TurnErrorNode {
    * turn closed after DSH stopped.
    */
   code?: string
+  /**
+   * Provider id that actually served the failed request, when the harness
+   * recorded it on the durable failure. Display/affordance metadata only;
+   * routing stays on {@link code}.
+   */
+  provider?: string
+  /**
+   * Provider payload's own error code when the adapter extracted it
+   * structurally (e.g. `insufficient_user_quota`). Absent when the payload
+   * carried no parseable top-level `code`.
+   */
+  providerErrorCode?: string
 }
 
 /** Durable notice for a turn ended by the per-request output-token cap. */

@@ -139,23 +139,42 @@ export function emptyAssistantBlock(blockType: string): AssistantBlock {
 export interface DisplayFailure {
   readonly code?: string
   readonly message: string
+  /** Provider that served the failed request, when the harness recorded it. */
+  readonly provider?: string
+  /** Provider payload's own code, when the adapter extracted it structurally. */
+  readonly providerErrorCode?: string
 }
 
 /**
  * Convert a durable failure to locale-independent fields safe for Chat.
  * @param failure - Failure preserved by a Session event.
- * @returns Sanitized message and optional stable provider code.
+ * @returns Sanitized message and optional stable provider code plus provider
+ *   attribution metadata, which never contains credential material.
  */
 export function displayFailure(failure: unknown): DisplayFailure {
   if (failure === null || typeof failure !== 'object') return { message: String(failure) }
-  const record = failure as { code?: unknown; message?: unknown }
+  const record = failure as {
+    code?: unknown
+    message?: unknown
+    provider?: unknown
+    providerErrorCode?: unknown
+  }
   const code = typeof record.code === 'string' ? record.code : undefined
+  const provider = typeof record.provider === 'string' && record.provider.length > 0 ? record.provider : undefined
+  const providerErrorCode = typeof record.providerErrorCode === 'string' && record.providerErrorCode.length > 0
+    ? record.providerErrorCode
+    : undefined
+  const attribution = {
+    ...provider === undefined ? {} : { provider },
+    ...providerErrorCode === undefined ? {} : { providerErrorCode },
+  }
   // Provider AUTH messages may echo a masked or partially preserved credential.
   // Keep the raw diagnostic in the Session log, but never retain it in UI state.
-  if (code === 'AUTH') return { code, message: '' }
+  if (code === 'AUTH') return { code, message: '', ...attribution }
   return {
     ...(code === undefined ? {} : { code }),
     message: typeof record.message === 'string' ? record.message : JSON.stringify(failure),
+    ...attribution,
   }
 }
 

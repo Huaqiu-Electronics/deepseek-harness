@@ -232,7 +232,7 @@ describe('provider-routed retry policy', () => {
       retry: 1,
       maxRetries: 2,
       delayMs: 500,
-      failure: { message: 'busy', code: 'RATE_LIMIT', status: 429 },
+      failure: { message: 'busy', code: 'RATE_LIMIT', status: 429, provider: 'mock' },
     })
     expect(adapter.requests).toHaveLength(1)
     await vi.advanceTimersByTimeAsync(499)
@@ -271,6 +271,7 @@ describe('provider-routed retry policy', () => {
     expect(event.data.failure).toEqual({
       message: 'model returned a completed response with no content',
       code: EMPTY_RESPONSE_CODE,
+      provider: 'mock',
     })
 
     const idle = waitForIdle(context, agent)

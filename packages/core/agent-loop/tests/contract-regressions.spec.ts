@@ -794,14 +794,14 @@ describe('a finish-error stream chunk ends the turn as error, not completed', ()
     send(agent, 'go')
     await waitForIdle(ctx, agent)
 
-    expect(reasons).toEqual([{ kind: 'error', error: failure }])
+    expect(reasons).toEqual([{ kind: 'error', error: { ...failure, provider: 'mock' } }])
     expect(errors).toHaveLength(1)
     expect(errors[0]).toBeInstanceOf(LlmError)
-    expect((errors[0] as LlmError).failure).toEqual(failure)
+    expect((errors[0] as LlmError).failure).toEqual({ ...failure, provider: 'mock' })
 
     const events = agent.session.snapshotEvents()
     const turnEnd = events.find(event => event.type === 'turn/end')
-    expect(turnEnd).toMatchObject({ data: { reason: { kind: 'error', error: failure } } })
+    expect(turnEnd).toMatchObject({ data: { reason: { kind: 'error', error: { ...failure, provider: 'mock' } } } })
     // A failed step must not synthesize an assistant message.
     expect(events.some(event => event.type === 'assistant/message')).toBe(false)
   })
@@ -820,7 +820,7 @@ describe('a finish-error stream chunk ends the turn as error, not completed', ()
     send(agent, 'go')
     await waitForIdle(ctx, agent)
 
-    expect(reasons).toEqual([{ kind: 'error', error: { message: 'model stream aborted', code: 'ABORTED' } }])
+    expect(reasons).toEqual([{ kind: 'error', error: { message: 'model stream aborted', code: 'ABORTED', provider: 'mock' } }])
     expect(agent.session.snapshotEvents().some(event => event.type === 'assistant/message')).toBe(false)
   })
 
@@ -838,7 +838,7 @@ describe('a finish-error stream chunk ends the turn as error, not completed', ()
     send(agent, 'go')
     await waitForIdle(ctx, agent)
 
-    expect(reasons).toEqual([{ kind: 'error', error: { message: 'codeless failure', code: 'UNKNOWN' } }])
+    expect(reasons).toEqual([{ kind: 'error', error: { message: 'codeless failure', code: 'UNKNOWN', provider: 'mock' } }])
   })
 })
 
@@ -1029,7 +1029,7 @@ describe('turn and step boundary recovery', () => {
     expect(c.stepStart).toBe(c.stepEnd)
     expect(c.lastTurnEnd?.type === 'turn/end' && c.lastTurnEnd.data.reason).toMatchObject({
       kind: 'error',
-      error: { message: 'provider 500', code: 'SERVER' },
+      error: { message: 'provider 500', code: 'SERVER', provider: 'mock' },
     })
     expect(threw).toBe(true)
 
@@ -1201,7 +1201,7 @@ describe('turn and step boundary recovery', () => {
     expect(e.at(-1)?.type).toBe('turn/end')
     expect(errors).toHaveLength(1)
     expect(errors[0]).toBeInstanceOf(LlmError)
-    expect((errors[0] as LlmError).failure).toEqual({ message: 'provider 500', code: 'SERVER' })
+    expect((errors[0] as LlmError).failure).toEqual({ message: 'provider 500', code: 'SERVER', provider: 'mock' })
 
     // loop survives.
     send(agent, 'again')

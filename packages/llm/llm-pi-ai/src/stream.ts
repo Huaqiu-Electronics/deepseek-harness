@@ -68,6 +68,36 @@ function classifyPiAiError(message: string): string {
 }
 
 /**
+ * Extract a provider payload's own `code` from a terminal error message.
+ *
+ * Gateways commonly embed a JSON body in the error text (`402: {…}`). The
+ * extractor deliberately accepts only the first `{` through the last `}` and
+ * requires a top-level, non-empty string `code`; it never infers a code from
+ * prose. Malformed, truncated, non-object, array, or non-string payloads
+ * return `undefined`, and the original message is not modified.
+ * @param message - terminal provider error text.
+ * @returns the provider payload's top-level code, when structurally present.
+ */
+export function extractProviderErrorCode(message: string): string | undefined {
+  const start = message.indexOf('{')
+  if (start < 0) return undefined
+  // An array root is not a provider payload object: rejecting it up front
+  // keeps a first-element object from masquerading as a top-level `code`.
+  const arrayStart = message.indexOf('[')
+  if (arrayStart >= 0 && arrayStart < start) return undefined
+  const end = message.lastIndexOf('}')
+  if (end < start) return undefined
+  try {
+    const parsed: unknown = JSON.parse(message.slice(start, end + 1))
+    if (typeof parsed !== 'object' || parsed === null || Array.isArray(parsed)) return undefined
+    const code = (parsed as { code?: unknown }).code
+    return typeof code === 'string' && code.length > 0 ? code : undefined
+  } catch {
+    return undefined
+  }
+}
+
+/**
  * Map a terminal pi-ai event to the harness finish reason.
  * @param message - the assistant message carried by the `done` or `error` event.
  * @param contextWindow - resolved catalog capacity for usage-based overflow detection.
@@ -122,7 +152,15 @@ export function mapStopReason(message: AssistantMessage, contextWindow?: number)
     }
     case 'error': {
       const text = message.errorMessage ?? 'pi-ai stream error'
-      return { kind: 'error', failure: { message: text, code: classifyPiAiError(text) } }
+      const providerErrorCode = extractProviderErrorCode(text)
+      return {
+        kind: 'error',
+        failure: {
+          message: text,
+          code: classifyPiAiError(text),
+          ...providerErrorCode === undefined ? {} : { providerErrorCode },
+        },
+      }
     }
   }
 }

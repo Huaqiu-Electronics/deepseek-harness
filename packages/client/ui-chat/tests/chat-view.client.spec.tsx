@@ -285,6 +285,7 @@ type ToolOwner = Pick<ChatNodeOwnerProps, 'openFile' | 'inspectCall'> & {
 const renderCommandSlot: React.ComponentProps<typeof CommandNodeView>['renderSlot'] =
   (_key, _owner, opts) => opts?.fallback ?? null
 const renderTurnTailSlot: React.ComponentProps<typeof TurnTailNodeView>['renderSlot'] = () => null
+const renderTurnErrorSlot: React.ComponentProps<typeof TurnErrorNodeView>['renderSlot'] = () => null
 
 function HarnessChatFlow({ standard, owner, hookContext, renderSlot, useConnectionState }: {
   readonly standard: HarnessStandardProps
@@ -348,7 +349,7 @@ function HarnessChatNode({
     case 'model-retry':
       return <RetryNodeView {...nodeProps} node={owner.node} />
     case 'turn-error':
-      return <TurnErrorNodeView {...nodeProps} node={owner.node} />
+      return <TurnErrorNodeView {...nodeProps} node={owner.node} renderSlot={renderTurnErrorSlot} />
     case 'turn-max-tokens':
       return <TurnMaxTokensNodeView {...nodeProps} node={owner.node} />
     case 'turn-process':

@@ -53,11 +53,33 @@ describe('adapter failure normalization', () => {
     malformed.code = 'FOREIGN'
     expect(normalizeLlmFailure(malformed)).toEqual({ message: 'provider failed', code: 'UNKNOWN' })
 
+    const emptyProvider = new Error('provider failed') as Error & { failure: unknown; code: string }
+    emptyProvider.failure = { message: 'provider failed', code: 'FOREIGN', provider: '' }
+    emptyProvider.code = 'FOREIGN'
+    expect(normalizeLlmFailure(emptyProvider)).toEqual({ message: 'provider failed', code: 'UNKNOWN' })
+
     const accessorBacked = new Error('provider failed') as Error & { failure: unknown }
     accessorBacked.failure = Object.defineProperty({}, 'message', {
       get() { throw new Error('failure getter failed') },
     })
     expect(normalizeLlmFailure(accessorBacked)).toEqual({ message: 'provider failed', code: 'UNKNOWN' })
+  })
+
+  it('preserves provider attribution on a foreign failure snapshot', () => {
+    const withProvider = new Error('provider failed') as Error & { failure: unknown; code: string }
+    withProvider.failure = {
+      message: '402: {"code":"insufficient_user_quota"}',
+      code: 'PI_AI_ERROR',
+      provider: 'huaqiu',
+      providerErrorCode: 'insufficient_user_quota',
+    }
+    withProvider.code = 'PI_AI_ERROR'
+    expect(normalizeLlmFailure(withProvider)).toEqual({
+      message: '402: {"code":"insufficient_user_quota"}',
+      code: 'PI_AI_ERROR',
+      provider: 'huaqiu',
+      providerErrorCode: 'insufficient_user_quota',
+    })
   })
 
   it('falls back when an Error message accessor throws', () => {

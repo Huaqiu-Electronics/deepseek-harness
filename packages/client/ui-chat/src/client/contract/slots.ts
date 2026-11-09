@@ -29,7 +29,7 @@ import type { FlowMotionRows } from '../chat/flow-motion.ts'
 import type { ToolCallId } from './store.ts'
 import type { ChatConversationViewNode, ChatNode, ChatNodeKind } from './chat-nodes.ts'
 import type {
-  ChatNodeProcessSource, ChatNodeSource, ChatSnapshot, ChatTurnProcessPresentation,
+  ChatNodeProcessSource, ChatNodeSource, ChatSnapshot, ChatTurnProcessPresentation, TurnErrorNode,
 } from './snapshot.ts'
 import type { TurnProcessSpec } from './turn-process.ts'
 import type { PerformanceUsageMode } from '../../chat-settings.ts'
@@ -248,6 +248,12 @@ export interface ChatNodeOwnerProps {
   turnProcess?: TurnProcessOwnerProps | undefined
 }
 
+/** Owner currency of the terminal turn-error action row. */
+export interface TurnErrorActionOwnerProps {
+  /** The failed turn the card describes. */
+  readonly node: TurnErrorNode
+}
+
 /** One attachment in the original user-message display order. */
 export type UserContentAttachment =
   | { readonly type: 'image'; readonly image: MessageImageSource }
@@ -447,6 +453,17 @@ declare module '@deepseek-ai/dsh-client-ui-slots' {
       keyProps: { [Kind in ChatNodeKind]: { node: ChatNode<Kind> } }
       hookContext: ChatNodeHookContext
       inject: ChatNodeInjected
+    }
+    /**
+     * Ordered feature actions inside the terminal turn-error card. Each entry
+     * receives the durable failure node and may render a recovery affordance;
+     * a fresh `id` adds an action and entries without content return null.
+     * With no entries the shipped card is unchanged.
+     */
+    'conversation.chat.turn-error.action': {
+      kind: 'list'
+      scope: 'session'
+      owner: TurnErrorActionOwnerProps
     }
     /**
      * Message-source decoration owned and rendered by the user Node entry.

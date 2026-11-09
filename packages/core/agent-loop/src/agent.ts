@@ -541,6 +541,11 @@ export class ReactLoopAgent implements Agent {
       try {
         const finish = live.finish
         if (finish.kind === 'error' || finish.kind === 'aborted') {
+          // Attach the provider that actually served this attempt. The adapter
+          // only knows the provider payload, so the routed request is the
+          // authoritative source; enriching before the recovery waterfall keeps
+          // the metadata on both the observable event and the terminal turn.
+          const failure = { ...finish.failure, provider: request.provider }
           live.settle(
             'assistant/attempt',
             () => this.session.append('assistant/attempt', { turn, step, stream: live.stream }).seq,
@@ -550,7 +555,7 @@ export class ReactLoopAgent implements Agent {
               turn,
               step,
               provider: request.provider,
-              failure: finish.failure,
+              failure,
               retryPolicy: preparedCall?.retryPolicy,
               signal,
             },
@@ -558,7 +563,7 @@ export class ReactLoopAgent implements Agent {
           )
           signal.throwIfAborted()
           if (action?.kind !== 'retry') {
-            throw new LlmError(finish.failure.message, finish.failure.code, finish.failure)
+            throw new LlmError(failure.message, failure.code, failure)
           }
           continue
         }

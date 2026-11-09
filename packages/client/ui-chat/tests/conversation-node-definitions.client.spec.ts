@@ -3147,6 +3147,31 @@ it('reports an interrupted ending on a turn observed from its start', () => {
   expect(node(snapshot(value), 'turn-error')?.data).toMatchObject({ seq: 2, turn: 1, code: 'INTERRUPTED' })
 })
 
+it('projects provider attribution and the provider payload code onto the failure node', () => {
+  const value = assembler([
+    at(1, 'turn/start', { turn: 1 }),
+    at(2, 'turn/end', {
+      turn: 1,
+      reason: {
+        kind: 'error',
+        error: {
+          message: '402: {"code":"insufficient_user_quota"}',
+          code: 'PI_AI_ERROR',
+          provider: 'huaqiu',
+          providerErrorCode: 'insufficient_user_quota',
+        },
+      },
+    }),
+  ])
+  expect(node(snapshot(value), 'turn-error')?.data).toMatchObject({
+    turn: 1,
+    code: 'PI_AI_ERROR',
+    provider: 'huaqiu',
+    providerErrorCode: 'insufficient_user_quota',
+    message: '402: {"code":"insufficient_user_quota"}',
+  })
+})
+
 it('keeps user cancellations and forked endings free of a failure row', () => {
   for (const reason of [{ kind: 'aborted', reason: { kind: 'user' } }, { kind: 'forked' }] as const) {
     const value = assembler([at(7, 'turn/end', { turn: 1, reason })], true)

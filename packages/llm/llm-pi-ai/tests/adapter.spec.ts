@@ -537,6 +537,26 @@ describe('provider profile lifecycle', () => {
     ]) expect(LlmPiAi).not.toHaveProperty(helper)
   })
 
+  it('extracts a gateway payload code without parsing prose', async () => {
+    const { extractProviderErrorCode } = await import('../src/stream.ts')
+    expect(extractProviderErrorCode(
+      '402: {"message":"用户额度不足, 剩余额度: ＄0.000000 (request id: x)","type":"new_api_error","param":"","code":"insufficient_user_quota"}',
+    )).toBe('insufficient_user_quota')
+    expect(extractProviderErrorCode('{"code":"insufficient_user_quota"} trailing text')).toBe('insufficient_user_quota')
+    expect(extractProviderErrorCode('quota exhausted: insufficient_user_quota')).toBeUndefined()
+    expect(extractProviderErrorCode('402 without a body')).toBeUndefined()
+  })
+
+  it('returns undefined for malformed, truncated, or non-conforming payloads', async () => {
+    const { extractProviderErrorCode } = await import('../src/stream.ts')
+    expect(extractProviderErrorCode('402: {"code":"insufficient_user_quota"')).toBeUndefined()
+    expect(extractProviderErrorCode('402: {"code":42}')).toBeUndefined()
+    expect(extractProviderErrorCode('402: {"code":""}')).toBeUndefined()
+    expect(extractProviderErrorCode('402: {"message":"quota"}')).toBeUndefined()
+    expect(extractProviderErrorCode('402: [{"code":"insufficient_user_quota"}]')).toBeUndefined()
+    expect(extractProviderErrorCode('402: null')).toBeUndefined()
+  })
+
   it('registers every profile atomically and unregisters on dispose', async () => {
     const ctx = new Context()
     await ctx.plugin(LlmRuntime)

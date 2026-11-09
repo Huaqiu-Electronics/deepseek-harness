@@ -129,9 +129,11 @@ function ModelRetryItem({ node, active, t }: {
 }
 
 /** Persistent, turn-positioned feedback for a terminal failure. */
-function TurnErrorItem({ node, t }: {
+function TurnErrorItem({ node, t, action }: {
   node: TurnErrorNode
   t: ChatViewSlotProps['t']
+  /** Feature actions contributed by the turn-error action slot. */
+  action?: ReactNode
 }) {
   return (
     <div className={css.turnErrorRow} role="status">
@@ -139,6 +141,7 @@ function TurnErrorItem({ node, t }: {
       <div className={css.turnErrorCopy}>
         <span className={css.turnErrorTitle}>{node.code === 'ACCOUNT_SIGNED_OUT' || node.code === 'INTERRUPTED' ? t('message.taskStopped') : t('message.turnError')}</span>
         <span className={css.turnErrorMessage}>{failureMessage(node.message, node.code, t)}</span>
+        {action}
       </div>
       {node.code !== undefined && node.code !== 'INTERRUPTED' && <code className={css.turnErrorCode}>{node.code}</code>}
     </div>
@@ -386,8 +389,11 @@ export const RetryNodeView = memo(function RetryNodeView({ node, t }: ChatNodeVi
 })
 
 /** Terminal turn-error keyed Chat renderer. */
-export const TurnErrorNodeView = memo(function TurnErrorNodeView({ node, t }: ChatNodeViewProps<'turn-error'>) {
-  return <TurnErrorItem node={node.data} t={t} />
+export const TurnErrorNodeView = memo(function TurnErrorNodeView({
+  node, t, renderSlot,
+}: ChatNodeViewProps<'turn-error'> & PropsRenderSlots<'conversation.chat.turn-error.action'>) {
+  const action = renderSlot('conversation.chat.turn-error.action', { node: node.data })
+  return <TurnErrorItem node={node.data} t={t} action={action} />
 })
 
 /** Max-tokens turn-end notice keyed Chat renderer. */

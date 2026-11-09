@@ -57,6 +57,20 @@ export interface LlmFailure {
   /** Opaque provider-issued request identifier for diagnostics. */
   readonly requestId?: ProviderRequestId
   /**
+   * Provider id that actually served the failed request (e.g. `huaqiu`).
+   * Supplied by the agent loop from the resolved request route, never inferred
+   * from `message`; absent when the failure did not originate from a routed
+   * provider attempt.
+   */
+  readonly provider?: string
+  /**
+   * Provider-specific error code carried by the provider payload (e.g.
+   * `insufficient_user_quota`), when the adapter could extract it structurally.
+   * Distinct from the provider-neutral {@link code}; diagnostics and product
+   * affordances may gate on it, but routing must not.
+   */
+  readonly providerErrorCode?: string
+  /**
    * With code `IMAGE_OFFLOAD_REQUIRED`: how many more of the oldest retained
    * image occurrences the route needs offloaded before the same request fits
    * its exact byte accounting. `dsh-compaction-image-offload` records the
