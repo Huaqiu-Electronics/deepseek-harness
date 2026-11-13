@@ -3,11 +3,17 @@
  * over the environment in this precedence order:
  *
  * ```text
- * $DSH_HOME/.credentials.yaml        (provider-managed, written by set/unset)
+ * (in-memory volatile mirror: setVolatile)   (host-mode mirror, never persisted)
+ * > $DSH_HOME/.credentials.yaml        (provider-managed, written by set/unset)
  * > inherited process environment    (fallback; this provider never writes it)
  * > <invocation cwd>/.env            (fallback; this provider never writes it)
  * > $DSH_HOME/.env                   (fallback; this provider never writes it)
  * ```
+ *
+ * The volatile layer is the only source consulted ahead of the file. A host
+ * mirror (e.g. the HQ Edge `HUAQIU_API_KEY` token) writes here so a rotating
+ * credential reaches `resolve` per call without acquiring the document lock or
+ * touching disk; it is strictly in-memory and never serialized to the document.
  *
  * The managed store wins because a credential the user explicitly saved in
  * the product must take effect consistently for every provider. The launch
@@ -534,6 +540,14 @@ export class LocalCredentialProvider extends CredentialProvider {
   /** Parsed record snapshot; replaced wholesale on every reload. */
   private records = new Map<string, CredentialRecord>()
   /**
+   * In-memory credential mirrors set through {@link setVolatile}. Kept separate
+   * from the file store and never persisted: a host-mode mirror such as the HQ
+   * Edge `HUAQIU_API_KEY` token writes here so a rotating value surfaces through
+   * `resolve` without touching `.credentials.yaml` or its cross-process lock.
+   * Survives file reloads because reloads only touch `values`/`records`/`text`.
+   */
+  private volatile = new Map<string, string>()
+  /**
    * Single exclusive operation chain: watcher reloads and line edits run one
    * at a time in queue order (settled tail), so an edit can never render from
    * text a concurrent reload is busy replacing.
@@ -622,6 +636,11 @@ export class LocalCredentialProvider extends CredentialProvider {
   }
 
   override resolve(ref: CredentialRef): Promise<ResolvedCredential | undefined> {
+    // An in-memory (non-persistent) mirror wins over every durable layer: a
+    // host-mode mirror such as HUAQIU_API_KEY writes here so a rotating token
+    // never touches `.credentials.yaml` or its cross-process lock.
+    const volatile = this.volatile.get(ref)
+    if (volatile !== undefined) return Promise.resolve({ value: volatile, source: 'memory' })
     const stored = this.values.get(ref)
     if (stored !== undefined) return Promise.resolve({ value: stored, source: 'file' })
     const inherited = this.inherited(ref)
@@ -632,6 +651,9 @@ export class LocalCredentialProvider extends CredentialProvider {
   }
 
   override describe(ref: CredentialRef): Promise<CredentialInfo> {
+    if (this.volatile.has(ref)) {
+      return Promise.resolve({ configured: true, source: 'memory', writable: true })
+    }
     const stored = this.values.get(ref)
     if (stored !== undefined) return Promise.resolve({ configured: true, source: 'file', writable: true })
     // Every reference is writable: a set writes the managed file, which
@@ -651,6 +673,34 @@ export class LocalCredentialProvider extends CredentialProvider {
 
   override async unset(ref: CredentialRef): Promise<void> {
     await this.write(ref, undefined)
+  }
+
+  /**
+   * Mirror one reference in memory only — no `.credentials.yaml` write, no
+   * cross-process lock. Used by host-mode credential mirrors (e.g. the HQ Edge
+   * `HUAQIU_API_KEY` token) that must surface a live, rotating value through
+   * `resolve` without persisting it. A volatile value takes precedence over the
+   * file and environment layers and survives file reloads; call
+   * {@link unsetVolatile} to clear it.
+   * @param ref - the reference to mirror.
+   * @param value - the non-empty secret value.
+   */
+  async setVolatile(ref: CredentialRef, value: string): Promise<void> {
+    if (value.length === 0) {
+      throw new Error(`credentials-local: an empty value cannot be stored volatily for "${ref}"; use unsetVolatile`)
+    }
+    if (this.volatile.get(ref) === value) return
+    this.volatile.set(ref, value)
+    this.notifyUpdated(ref)
+  }
+
+  /**
+   * Drop an in-memory mirror set by {@link setVolatile}. No file is touched;
+   * removing an absent mirror is a no-op.
+   * @param ref - the reference to clear.
+   */
+  async unsetVolatile(ref: CredentialRef): Promise<void> {
+    if (this.volatile.delete(ref)) this.notifyUpdated(ref)
   }
 
   override readRecord(key: CredentialKey): Promise<CredentialRecord | undefined> {

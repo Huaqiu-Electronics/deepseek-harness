@@ -501,3 +501,68 @@ describe('real hot reload', () => {
     expect(await ctx.credentials.resolve(KEY)).toEqual({ value: 'self-written', source: 'file' })
   })
 })
+
+describe('volatile in-memory mirror', () => {
+  it('resolves a volatile value and reports it as an in-memory source', async () => {
+    const dir = await tempDir()
+    const path = join(dir, '.credentials.yaml')
+    const ctx = await boot({ path, watch: false })
+    await ctx.credentials.setVolatile(KEY, 'live-token')
+    expect(await ctx.credentials.resolve(KEY)).toEqual({ value: 'live-token', source: 'memory' })
+    expect(await ctx.credentials.describe(KEY)).toEqual({ configured: true, source: 'memory', writable: true })
+  })
+
+  it('lets a volatile value win over a file-stored value', async () => {
+    const dir = await tempDir()
+    const path = join(dir, '.credentials.yaml')
+    await writeCredentials(path, 'version: 1\nrefs:\n  DSH_CRED_TEST: from-file\n')
+    const ctx = await boot({ path, watch: false })
+    await ctx.credentials.setVolatile(KEY, 'from-memory')
+    expect(await ctx.credentials.resolve(KEY)).toEqual({ value: 'from-memory', source: 'memory' })
+  })
+
+  it('falls through to the file once the volatile mirror is cleared', async () => {
+    const dir = await tempDir()
+    const path = join(dir, '.credentials.yaml')
+    await writeCredentials(path, 'version: 1\nrefs:\n  DSH_CRED_TEST: from-file\n')
+    const ctx = await boot({ path, watch: false })
+    await ctx.credentials.setVolatile(KEY, 'from-memory')
+    await ctx.credentials.unsetVolatile(KEY)
+    expect(await ctx.credentials.resolve(KEY)).toEqual({ value: 'from-file', source: 'file' })
+    expect(await ctx.credentials.describe(KEY)).toEqual({ configured: true, source: 'file', writable: true })
+  })
+
+  it('never writes the credentials document (no lock, no disk)', async () => {
+    const dir = await tempDir()
+    const path = join(dir, '.credentials.yaml')
+    const ctx = await boot({ path, watch: false })
+    await ctx.credentials.setVolatile(KEY, 'live-token')
+    // The document stays absent: the mirror is strictly in-memory.
+    await expect(stat(path)).rejects.toMatchObject({ code: 'ENOENT' })
+    expect(await ctx.credentials.resolve(KEY)).toEqual({ value: 'live-token', source: 'memory' })
+  })
+
+  it('emits reference-updated on volatile set and clear', async () => {
+    const dir = await tempDir()
+    const path = join(dir, '.credentials.yaml')
+    const ctx = await boot({ path, watch: false })
+    const seen = updates(ctx)
+    await ctx.credentials.setVolatile(KEY, 'live-token')
+    await ctx.credentials.unsetVolatile(KEY)
+    expect(seen).toEqual([KEY, KEY])
+  })
+
+  it('survives a file reload triggered by an external edit', async () => {
+    const dir = await tempDir()
+    const path = join(dir, '.credentials.yaml')
+    await writeCredentials(path, 'version: 1\nrefs:\n  DSH_CRED_TEST: from-file\n  DSH_CRED_OTHER: other-file\n')
+    const ctx = await boot({ path, watch: true, debounceMs: 10 })
+    await ctx.credentials.setVolatile(KEY, 'from-memory')
+    await writeCredentials(path, 'version: 1\nrefs:\n  DSH_CRED_TEST: from-file\n  DSH_CRED_OTHER: changed-on-disk\n')
+    await vi.waitFor(async () => {
+      expect(await ctx.credentials.resolve(OTHER)).toEqual({ value: 'changed-on-disk', source: 'file' })
+    })
+    // The volatile mirror is untouched by the reload.
+    expect(await ctx.credentials.resolve(KEY)).toEqual({ value: 'from-memory', source: 'memory' })
+  })
+})

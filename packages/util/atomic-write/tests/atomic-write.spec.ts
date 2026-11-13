@@ -1,7 +1,7 @@
 import { spawn } from 'node:child_process'
 import { createHash } from 'node:crypto'
 import { once } from 'node:events'
-import { lstat, mkdir, mkdtemp, readFile, readdir, rm, stat, symlink, writeFile } from 'node:fs/promises'
+import { lstat, mkdir, mkdtemp, readFile, readdir, rm, stat, symlink, utimes, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { dirname, join } from 'node:path'
 import { afterEach, describe, expect, it, vi } from 'vitest'
@@ -13,6 +13,7 @@ const state = vi.hoisted(() => ({
   claimRemovalFails: false,
   lockRemovalFails: false,
   lockPermissionFailures: 0,
+  onLink: undefined as ((temp: string, target: string) => Promise<void>) | undefined,
   releaseLockBeforeProbe: false,
   renameAttempts: 0,
   renameFailures: [] as string[],
@@ -20,8 +21,22 @@ const state = vi.hoisted(() => ({
 
 vi.mock('node:fs/promises', async (importOriginal) => {
   const actual = await importOriginal<typeof import('node:fs/promises')>()
+  // The lock is published through an exclusive hard link; the same injected
+  // permission failure must be able to hit both that primitive and the
+  // exclusive-create fallback.
+  const injectExclusiveCreateFailure = async (target: string): Promise<void> => {
+    if (state.lockPermissionFailures <= 0 || !target.endsWith('.lock')) return
+    state.lockPermissionFailures -= 1
+    if (state.releaseLockBeforeProbe) await actual.rm(target)
+    throw Object.assign(new Error('EPERM: injected exclusive-create failure'), { code: 'EPERM' })
+  }
   return {
     ...actual,
+    link: (async (...args: Parameters<typeof actual.link>) => {
+      await state.onLink?.(String(args[0]), String(args[1]))
+      await injectExclusiveCreateFailure(String(args[1]))
+      return actual.link(...args)
+    }),
     rename: (async (...args: Parameters<typeof actual.rename>) => {
       state.renameAttempts += 1
       const code = state.renameFailures.shift()
@@ -49,11 +64,7 @@ vi.mock('node:fs/promises', async (importOriginal) => {
         await state.afterClaim?.(String(path))
         return
       }
-      if (state.lockPermissionFailures > 0 && String(path).endsWith('.lock')) {
-        state.lockPermissionFailures -= 1
-        if (state.releaseLockBeforeProbe) await actual.rm(String(path))
-        throw Object.assign(new Error('EPERM: injected exclusive-create failure'), { code: 'EPERM' })
-      }
+      await injectExclusiveCreateFailure(String(path))
       return (actual.writeFile as (path: unknown, ...args: never[]) => Promise<void>)(path, ...rest)
     }) as typeof actual.writeFile,
   }
@@ -69,6 +80,7 @@ afterEach(async () => {
   state.claimRemovalFails = false
   state.lockRemovalFails = false
   state.lockPermissionFailures = 0
+  state.onLink = undefined
   state.releaseLockBeforeProbe = false
   state.renameAttempts = 0
   state.renameFailures.length = 0
@@ -352,6 +364,134 @@ describe('withFileLock', () => {
     await expect(withFileLock(target, operation, { waitMs: 50 })).rejects.toThrow(/timed out waiting for the writer lock/)
     expect(operation).not.toHaveBeenCalled()
     expect(await readFile(`${target}.lock`, 'utf8')).toBe(held)
+  })
+
+  /** Backdate a lock record so an interrupted writer is provably gone without waiting out the grace period. */
+  async function makeOrphanedLock(lockPath: string, content: string): Promise<void> {
+    await writeFile(lockPath, content)
+    const old = new Date(Date.now() - 60_000)
+    await utimes(lockPath, old, old)
+  }
+
+  it('publishes a complete record before the lock path becomes visible', async () => {
+    const dir = await scratch()
+    const target = join(dir, 'document')
+    let publishedFrom = ''
+    state.onLink = async (temp) => { publishedFrom = await readFile(temp, 'utf8') }
+
+    await expect(withFileLock(target, async () => await readFile(`${target}.lock`, 'utf8')))
+      .resolves.toBe(record(process.pid))
+    expect(publishedFrom).toBe(record(process.pid))
+    expect((await readdir(dir)).filter(entry => entry.includes('.pending'))).toEqual([])
+  })
+
+  it('recovers an interrupted zero-byte lock and emits exactly one diagnostic', async () => {
+    const dir = await scratch()
+    const target = join(dir, 'document')
+    const lockPath = `${target}.lock`
+    await makeOrphanedLock(lockPath, '')
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {})
+
+    await expect(withFileLock(target, async () => 'acquired', { waitMs: 0 })).resolves.toBe('acquired')
+    expect(warn).toHaveBeenCalledOnce()
+    expect(String(warn.mock.calls[0]?.[0])).toContain('lock-incomplete-recovered')
+    expect(await readdir(dir)).toEqual([])
+  })
+
+  it('recovers the zero-byte lock left behind by a process that exited mid-publication', async () => {
+    const dir = await scratch()
+    const target = join(dir, 'document')
+    const lockPath = `${target}.lock`
+    const child = spawn(process.execPath, ['-e', `require('node:fs').writeFileSync(${JSON.stringify(lockPath)}, '')`], { stdio: 'ignore' })
+    await once(child, 'exit')
+    const old = new Date(Date.now() - 60_000)
+    await utimes(lockPath, old, old)
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {})
+
+    await expect(withFileLock(target, async () => 'acquired', { waitMs: 0 })).resolves.toBe('acquired')
+    expect(warn).toHaveBeenCalledOnce()
+    expect(await readdir(dir)).toEqual([])
+  })
+
+  it('does not take over a freshly created incomplete lock', async () => {
+    const dir = await scratch()
+    const target = join(dir, 'document')
+    const lockPath = `${target}.lock`
+    await writeFile(lockPath, '')
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {})
+    const operation = vi.fn(async () => {})
+
+    await expect(withFileLock(target, operation, { waitMs: 50 })).rejects.toThrow(/timed out waiting for the writer lock/)
+    expect(operation).not.toHaveBeenCalled()
+    expect(warn).not.toHaveBeenCalled()
+    expect(await readFile(lockPath, 'utf8')).toBe('')
+  })
+
+  it('does not take over an incomplete record whose partial PID is a live process', async () => {
+    const dir = await scratch()
+    const target = join(dir, 'document')
+    const lockPath = `${target}.lock`
+    await makeOrphanedLock(lockPath, String(process.pid))
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {})
+
+    await expect(withFileLock(target, async () => {}, { waitMs: 50 })).rejects.toThrow(/timed out waiting for the writer lock/)
+    expect(warn).not.toHaveBeenCalled()
+    expect(await readFile(lockPath, 'utf8')).toBe(String(process.pid))
+  })
+
+  it('never takes over a complete but unverifiable record, however old it is', async () => {
+    const dir = await scratch()
+    const target = join(dir, 'document')
+    const lockPath = `${target}.lock`
+    await makeOrphanedLock(lockPath, 'holder\n')
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {})
+
+    await expect(withFileLock(target, async () => {}, { waitMs: 50 })).rejects.toThrow(/timed out waiting for the writer lock/)
+    expect(warn).not.toHaveBeenCalled()
+    expect(await readFile(lockPath, 'utf8')).toBe('holder\n')
+  })
+
+  it('admits one contender at a time and emits one diagnostic when several recover the same orphaned lock', async () => {
+    const dir = await scratch()
+    const target = join(dir, 'document')
+    await makeOrphanedLock(`${target}.lock`, '')
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {})
+    let active = 0
+    let overlapped = false
+
+    await Promise.all(Array.from({ length: 8 }, () => withFileLock(target, async () => {
+      active += 1
+      overlapped ||= active > 1
+      await new Promise(resolve => setTimeout(resolve, 5))
+      active -= 1
+    }, { waitMs: 10_000 })))
+    expect(overlapped).toBe(false)
+    expect(warn).toHaveBeenCalledOnce()
+    expect(await readdir(dir)).toEqual([])
+  })
+
+  it('keeps a lock another contender acquired while this one claimed the incomplete record', async () => {
+    const dir = await scratch()
+    const target = join(dir, 'document')
+    const lockPath = `${target}.lock`
+    await makeOrphanedLock(lockPath, '')
+    const successor = record(process.pid)
+    state.afterClaim = async () => {
+      state.afterClaim = undefined
+      await writeFile(lockPath, successor)
+    }
+
+    await expect(withFileLock(target, async () => {}, { waitMs: 50 })).rejects.toThrow(/timed out waiting for the writer lock/)
+    expect(await readFile(lockPath, 'utf8')).toBe(successor)
+  })
+
+  it('removes the lock after a failed operation', async () => {
+    const dir = await scratch()
+    const target = join(dir, 'document')
+
+    await expect(withFileLock(target, async () => { throw new Error('operation failed') }))
+      .rejects.toThrow('operation failed')
+    expect(await readdir(dir)).toEqual([])
   })
 
   it('waits for a holder whose process exists under another user', async () => {
