@@ -685,7 +685,7 @@ export class LocalCredentialProvider extends CredentialProvider {
    * @param ref - the reference to mirror.
    * @param value - the non-empty secret value.
    */
-  async setVolatile(ref: CredentialRef, value: string): Promise<void> {
+  override async setVolatile(ref: CredentialRef, value: string) : Promise<void>{
     if (value.length === 0) {
       throw new Error(`credentials-local: an empty value cannot be stored volatily for "${ref}"; use unsetVolatile`)
     }
@@ -699,7 +699,7 @@ export class LocalCredentialProvider extends CredentialProvider {
    * removing an absent mirror is a no-op.
    * @param ref - the reference to clear.
    */
-  async unsetVolatile(ref: CredentialRef): Promise<void> {
+  override async unsetVolatile(ref: CredentialRef): Promise<void> {
     if (this.volatile.delete(ref)) this.notifyUpdated(ref)
   }
 

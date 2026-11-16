@@ -302,6 +302,15 @@ export abstract class CredentialProvider extends Service {
     this.ctx.logger.warn('credentials: a %s listener for "%s" failed', event, subject)
     this.ctx.logger.warn(error)
   }
+
+
+  async setVolatile(_ref: CredentialRef, _value: string): Promise<void>{
+    throw new Error('setVolatile is not implemented in this provider')
+  }
+
+  async unsetVolatile(_ref: CredentialRef): Promise<void>{
+    throw new Error('unsetVolatile is not implemented in this provider')
+  }
 }
 
 export default CredentialProvider
