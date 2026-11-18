@@ -313,6 +313,11 @@ export interface SessionForkRequest {
   readonly atSeq?: number
   /** False asks the Host to check for required migration before forking. Defaults to true. */
   readonly allowMigration?: boolean
+  /**
+   * Workspace the child Session is created in, replacing the source's location.
+   * Omitted → the source's own workspace (the historical behaviour).
+   */
+  readonly workspaceId?: WorkspaceId
 }
 
 /** Identity of a newly forked Session. */

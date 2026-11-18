@@ -295,3 +295,57 @@ describe('Session fork failures', () => {
     await ctx.fiber.dispose()
   })
 })
+
+describe('Session fork into a requested Workspace', () => {
+  /** A registry holding one attachable workspace at `path`. */
+  function registryWith(workspace: Workspace | undefined): never {
+    return {
+      get: (id: string) => (workspace !== undefined && workspace.id === id ? workspace : undefined),
+      list: () => (workspace === undefined ? [] : [workspace]),
+    } as never
+  }
+
+  it('moves the child into the requested Workspace instead of the source location', async () => {
+    const ctx = await baseContext()
+    const target = {
+      id: 'target-workspace' as WorkspaceId,
+      path: '/generated-project',
+      sessionIds: [] as SessionId[],
+      attachSession: (sessionId: SessionId) => {
+        target.sessionIds.push(sessionId)
+        return Promise.resolve(target)
+      },
+    } as unknown as Workspace
+    ctx.provide('workspaceRegistry', registryWith(target))
+    const source = completedSession(ctx, 'relocated-source', '/agent-workspace')
+    const create = vi.spyOn(ctx.agents, 'create').mockImplementation(
+      (options: CreateAgentOptions) => Promise.resolve(resolvedHandle(ctx, options.sessionId)),
+    )
+    const controller = new SessionCommandController(ctx, controllerAgents(ctx), '/default')
+
+    const forked = await controller.fork({ sessionId: source.id, workspaceId: target.id })
+
+    // The child's cwd is the one thing that makes it a member of the new
+    // workspace (membership is a canonical-cwd match), so it must follow the
+    // requested workspace rather than the source's immutable cwd.
+    const options = create.mock.calls[0]?.[0]
+    if (options === undefined) throw new Error('Agent creation was not attempted')
+    expect(options.meta?.cwd).toBe('/generated-project')
+    expect(forked.sessionId).not.toBe(source.id)
+    expect(target.sessionIds).toEqual([forked.sessionId])
+    await ctx.fiber.dispose()
+  })
+
+  it('rejects an unknown requested Workspace instead of silently forking at the source', async () => {
+    const ctx = await baseContext()
+    ctx.provide('workspaceRegistry', registryWith(undefined))
+    const source = completedSession(ctx, 'missing-target-source', '/agent-workspace')
+    const controller = new SessionCommandController(ctx, controllerAgents(ctx), '/default')
+
+    await expectFailure(
+      controller.fork({ sessionId: source.id, workspaceId: 'missing' as WorkspaceId }),
+      'workspace/not-found',
+    )
+    await ctx.fiber.dispose()
+  })
+})

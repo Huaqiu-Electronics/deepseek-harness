@@ -224,7 +224,13 @@ export class SessionCommandController {
    * Create a new ordinary Session from an exact event prefix. An explicit
    * `atSeq` is the inclusive cut; an omitted value selects the latest
    * completed-turn prefix. An open cut receives synthetic fork closers.
-   * @param request - source Session and optional exact event boundary.
+   *
+   * The child inherits the SOURCE's location unless the request names a
+   * `workspaceId`: a Session's cwd is immutable, so "fork into another
+   * workspace" is the one supported way to continue a conversation under a
+   * different directory (an external caller handing a generated project to a
+   * new workspace needs exactly that).
+   * @param request - source Session, optional exact event boundary, and optional target workspace.
    * @returns the new Session identity.
    */
   async fork(request: SessionForkRequest): Promise<SessionForkValue> {
@@ -264,7 +270,9 @@ export class SessionCommandController {
     const seed = buildForkSeed(source.events, boundary)
     let workspace: Workspace | undefined
     try {
-      workspace = await this.forkWorkspace(source.header)
+      workspace = request.workspaceId === undefined
+        ? await this.forkWorkspace(source.header)
+        : this.ctx.workspaceRegistry.get(request.workspaceId)
     } catch (error) {
       throw new RemoteError(
         'gateway/internal',
@@ -272,6 +280,15 @@ export class SessionCommandController {
         {},
       )
     }
+    if (request.workspaceId !== undefined && workspace === undefined) {
+      throw new RemoteError('workspace/not-found', `workspace "${request.workspaceId}" not found`, {
+        workspaceId: request.workspaceId,
+      })
+    }
+    // A requested workspace REPLACES the inherited location: the child's cwd is
+    // what makes it a member of that workspace (membership is a canonical-cwd
+    // match), and it is immutable once created.
+    const cwd = workspace?.path ?? source.header.cwd
     const childId = brandString<SessionId>(`session-${randomUUID()}`)
     const composition = await this.agents.composeAgent(this.agents.presetForObservation(source))
     try {
@@ -281,7 +298,7 @@ export class SessionCommandController {
         seed,
         inheritedEventCount: SessionLogOffset(boundary + 1),
         meta: {
-          ...(source.header.cwd === undefined ? {} : { cwd: source.header.cwd }),
+          ...(cwd === undefined ? {} : { cwd }),
           isSeeded: true,
           ...(composition.agentPreset === undefined
             ? {}
