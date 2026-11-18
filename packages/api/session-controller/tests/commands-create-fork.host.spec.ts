@@ -307,13 +307,16 @@ describe('Session fork into a requested Workspace', () => {
 
   it('moves the child into the requested Workspace instead of the source location', async () => {
     const ctx = await baseContext()
+    // `Workspace.sessionIds` is a readonly view of the candidate account, so the
+    // attachment is recorded out of band rather than by mutating it.
+    const attached: SessionId[] = []
     const target = {
       id: 'target-workspace' as WorkspaceId,
       path: '/generated-project',
-      sessionIds: [] as SessionId[],
+      sessionIds: [] as readonly SessionId[],
       attachSession: (sessionId: SessionId) => {
-        target.sessionIds.push(sessionId)
-        return Promise.resolve(target)
+        attached.push(sessionId)
+        return Promise.resolve(undefined)
       },
     } as unknown as Workspace
     ctx.provide('workspaceRegistry', registryWith(target))
@@ -332,7 +335,7 @@ describe('Session fork into a requested Workspace', () => {
     if (options === undefined) throw new Error('Agent creation was not attempted')
     expect(options.meta?.cwd).toBe('/generated-project')
     expect(forked.sessionId).not.toBe(source.id)
-    expect(target.sessionIds).toEqual([forked.sessionId])
+    expect(attached).toEqual([forked.sessionId])
     await ctx.fiber.dispose()
   })
 
