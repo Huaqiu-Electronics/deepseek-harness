@@ -18,6 +18,15 @@ overrides:
   'extract-zip>yauzl': '3.4.0'
   '@deepseek-ai/cosmokit': 'link:vendor/cosmokit'
   '@deepseek-ai/schemastery': 'link:vendor/schemastery'
+  # ── M1 pre-publication bridge ───────────────────────────────────────────────
+  # `@huaqiu/hardware-engineering` is the Huaqiu Desktop product bundle and is a
+  # runtime dependency of `@deepseek-ai/dsh` (apps/cli). It has not been
+  # published to npm yet, so a plain "0.7.10" spec cannot resolve. This pins it
+  # to the sibling engineering repo instead.
+  #
+  # REMOVE THIS ENTRY (and nothing else) once 0.7.10 is published: the
+  # dependency spec in apps/cli/package.json is already the production truth.
+  '@huaqiu/hardware-engineering': 'link:../dsh-pcb-eda/packages/hardware-engineering'
 
 peerDependencyRules:
   allowedVersions:

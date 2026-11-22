@@ -5,6 +5,7 @@
  */
 
 import { existsSync, globSync, readFileSync, statSync } from 'node:fs'
+import { createRequire } from 'node:module'
 import { basename, dirname, extname, relative, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { JSDOM } from 'jsdom'
@@ -240,11 +241,46 @@ export function verifyDefaultProductIsolation(root: string): ProductIsolationRes
     const path = display(pkg.directory)
     if (path.startsWith('apps/') || path === 'python/sdk-runtime') add(pkg, path)
   }
+  /**
+   * Read a package manifest the installation carries but this workspace does not build.
+   *
+   * Anchored on the same `apps/cli/package.json` the runtime uses (with the
+   * workspace root as a hoisting fallback), so this follows the resolution order
+   * a profile boot would take rather than a bespoke lookup.
+   */
+  const installedBundle = (name: string): { directory: string; manifest: Manifest } | undefined => {
+    for (const anchor of [resolve(root, 'apps/cli/package.json'), resolve(root, 'package.json')]) {
+      try {
+        const manifestPath = createRequire(anchor).resolve(`${name}/package.json`)
+        return { directory: dirname(manifestPath), manifest: JSON.parse(readFileSync(manifestPath, 'utf8')) as Manifest }
+      } catch {
+        // Not resolvable from this anchor; fall through to the next one.
+      }
+    }
+    return undefined
+  }
   if (selection !== undefined) {
     for (const name of selection.packages) {
       reference(name, PROFILE_SOURCE)
-      if (packages.get(name)?.manifest.dsh?.bundle?.patch === undefined) {
+      const workspace = packages.get(name)?.manifest
+      // A shipped template may select a bundle the installation carries but this
+      // workspace does not build — a third-party product package published to
+      // npm and declared as a runtime dependency of apps/cli. The workspace globs
+      // cannot see it, so checking the workspace map alone would reject a
+      // legitimate composition with a misleading "must declare dsh.bundle.patch".
+      const installed = workspace === undefined ? installedBundle(name) : undefined
+      const manifest = workspace ?? installed?.manifest
+      if (manifest === undefined) {
+        failures.push(`${PROFILE_SOURCE}: default bundle ${name} is neither a workspace package nor installed in the installation`)
+      } else if (manifest.dsh?.bundle?.patch === undefined) {
         failures.push(`${PROFILE_SOURCE}: default bundle ${name} must declare dsh.bundle.patch`)
+      } else if (installed !== undefined) {
+        // The tarball is the only artifact DSH will read; assert the patch it
+        // names actually shipped rather than that the field is merely present.
+        const patch = installed.manifest.dsh?.bundle?.patch as string
+        if (!existsSync(resolve(installed.directory, patch))) {
+          failures.push(`${PROFILE_SOURCE}: default bundle ${name} names a patch that is not in its package (${patch})`)
+        }
       }
       if (optionalBundles.has(name)) failures.push(`${PROFILE_SOURCE}: optional bundle ${name} must not be a default bundle`)
     }

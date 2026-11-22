@@ -28,7 +28,13 @@ import { PROFILE_TEMPLATES, type ProfileTemplate } from '@deepseek-ai/dsh-offici
 const PROJECT_NAME = '@deepseek-ai/dsh-desktop-runtime'
 const DSH_PACKAGE = '@deepseek-ai/dsh'
 const CORE_BUILD_PACKAGE = '@deepseek-ai/dsh-subprocess-local'
-const WEB_PROFILE = PROFILE_TEMPLATES.web as ProfileTemplate
+/**
+ * The Desktop product composition. This used to be `PROFILE_TEMPLATES.web`,
+ * which is also the `dsh web` CLI profile; the Desktop now owns a distinct
+ * template so a third-party product bundle can be built in without changing
+ * what a CLI or an upstream Desktop user boots.
+ */
+const DESKTOP_PROFILE = PROFILE_TEMPLATES.desktop as ProfileTemplate
 const WORKSPACE_SETTINGS = 'nodeLinker: hoisted\nautoInstallPeers: false\n'
 function writeJson(path: string, value: unknown): void {
   writeFileSync(path, `${JSON.stringify(value, undefined, 2)}\n`, { mode: 0o600 })
@@ -73,7 +79,7 @@ export class DesktopProjectManager {
    * @returns Backup path after the locked profile write, or undefined if the patch was absent.
    */
   async disableAllPlugins(): Promise<string | undefined> {
-    return this.withLock(() => sanitizeProfile('dsh', this.paths.profile, WEB_PROFILE.bundles))
+    return this.withLock(() => sanitizeProfile('dsh', this.paths.profile, DESKTOP_PROFILE.bundles))
   }
 
   /**
@@ -138,7 +144,7 @@ export function createRuntimeProjectMetadata(projectDir: string, release: Deskto
     private: true,
     version: '0.0.0',
     dependencies: desktopCorePackageOverrides(packageSet),
-    dsh: { profile: { bundles: [...WEB_PROFILE.bundles] } },
+    dsh: { profile: { bundles: [...DESKTOP_PROFILE.bundles] } },
   }
   writeJson(join(projectDir, 'package.json'), manifest)
   writeFileSync(
@@ -163,7 +169,7 @@ export function createDevelopmentProjectMetadata(projectDir: string, release: De
       [DSH_PACKAGE]: release.version,
       [DESKTOP_HOST_PACKAGE]: release.version,
     },
-    dsh: { profile: { bundles: [...WEB_PROFILE.bundles] } },
+    dsh: { profile: { bundles: [...DESKTOP_PROFILE.bundles] } },
   }
   writeJson(join(projectDir, 'package.json'), manifest)
   writeFileSync(join(projectDir, 'pnpm-workspace.yaml'), workspaceFile(), { mode: 0o600 })
@@ -171,5 +177,47 @@ export function createDevelopmentProjectMetadata(projectDir: string, release: De
 
 /** Create the first external plugin profile without running a package manager. */
 export function createPluginProfile(projectDir: string): void {
-  initProfile(projectDir, WEB_PROFILE.bundles)
+  ensureProductBundles(projectDir, DESKTOP_PROFILE.bundles)
+}
+
+/**
+ * Make sure every installation-owned product bundle is selected by the profile.
+ *
+ * `initProfile` is a no-op once a manifest exists, which is right for a generic
+ * profile but wrong for a product composition: an installation that starts
+ * shipping a new built-in bundle would never select it on an existing profile,
+ * so the product would boot with its features silently missing (a missing
+ * bundle is one stderr line, not a failure).
+ *
+ * This appends only what is absent and never removes or reorders a
+ * user-selected bundle, so a profile that already lists the product bundle —
+ * or a customized one — is left as the user left it. An empty or absent bundle
+ * list is treated as uninitialized and receives the template verbatim.
+ *
+ * @param projectDir - profile directory (contains `package.json`).
+ * @param bundles - the installation-owned bundle list for this product.
+ */
+export function ensureProductBundles(projectDir: string, bundles: readonly string[]): void {
+  // Creates the manifest, the user patch layer and the pnpm settings, and is a
+  // no-op on anything that already exists — including the `cordis.patch.yml` a
+  // recovery reset renamed away.
+  initProfile(projectDir, bundles)
+  const manifestPath = join(projectDir, 'package.json')
+  let manifest: Record<string, unknown>
+  let current: unknown
+  try {
+    manifest = JSON.parse(readFileSync(manifestPath, 'utf8')) as Record<string, unknown>
+    current = (manifest.dsh as { profile?: { bundles?: unknown } } | undefined)?.profile?.bundles
+  } catch {
+    // A corrupt manifest is the loader's problem to report; do not overwrite it.
+    return
+  }
+  if (current !== undefined && !Array.isArray(current)) return
+  const selected = Array.isArray(current) ? current.filter((name): name is string => typeof name === 'string') : []
+  const missing = bundles.filter(name => !selected.includes(name))
+  if (selected.length > 0 && missing.length === 0) return
+  const next = selected.length === 0 ? [...bundles] : [...selected, ...missing]
+  const dsh = (manifest.dsh ?? {}) as Record<string, unknown>
+  const profile = (dsh.profile ?? {}) as Record<string, unknown>
+  writeJson(manifestPath, { ...manifest, dsh: { ...dsh, profile: { ...profile, bundles: next } } })
 }

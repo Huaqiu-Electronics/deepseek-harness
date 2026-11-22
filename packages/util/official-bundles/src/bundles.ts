@@ -14,6 +14,27 @@ export const PROFILE_TEMPLATES: Record<string, ProfileTemplate> = {
   web: {
     bundles: ['@deepseek-ai/dsh-base', '@deepseek-ai/dsh-web-app'],
   },
+  /**
+   * The Huaqiu Desktop product composition.
+   *
+   * `web` is deliberately left untouched: it also backs `dsh web` for CLI
+   * developers and every existing user, so appending a third-party bundle there
+   * would silently change a non-Desktop product. This template is the product
+   * identity — the Desktop profile (`$DSH_HOME/profiles/desktop`) is initialized
+   * from it, so the Hardware Engineering bundle ships built-in and activates on
+   * first launch with no profile-local install.
+   *
+   * `@huaqiu/hardware-engineering` is an installation dependency of
+   * `@deepseek-ai/dsh`, which is what makes it resolvable from the installation
+   * anchor (see `resolveBundleDir`). It is not a workspace package here.
+   */
+  desktop: {
+    bundles: [
+      '@deepseek-ai/dsh-base',
+      '@deepseek-ai/dsh-web-app',
+      '@huaqiu/hardware-engineering',
+    ],
+  },
   headless: {
     bundles: ['@deepseek-ai/dsh-base', '@deepseek-ai/dsh-headless'],
   },
@@ -31,6 +52,13 @@ export const PROFILE_TEMPLATES: Record<string, ProfileTemplate> = {
  */
 export const INSTALLATION_OWNED_PROFILE_TUPLES: Readonly<Record<string, readonly string[]>> = {
   headless: ['@deepseek-ai/dsh-base', '@deepseek-ai/dsh-web-app', '@deepseek-ai/dsh-headless'],
+  /**
+   * What every Desktop build before the Huaqiu product composition wrote. A
+   * profile still carrying exactly this list is upgraded in place to the
+   * `desktop` template on next load, which is how an existing install picks up
+   * the Hardware Engineering bundle without reinstalling.
+   */
+  desktop: ['@deepseek-ai/dsh-base', '@deepseek-ai/dsh-web-app'],
 }
 
 /** Bundles an earlier release shipped and the installation no longer carries; app-boot removes them from profiles. */

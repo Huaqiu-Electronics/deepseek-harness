@@ -24,9 +24,25 @@ describe('Shipped profile templates', () => {
     expect(PROFILE_TEMPLATES).toEqual({
       acp: { bundles: ['@deepseek-ai/dsh-base', '@deepseek-ai/dsh-acp-app'] },
       web: { bundles: ['@deepseek-ai/dsh-base', '@deepseek-ai/dsh-web-app'] },
+      // The Desktop product composition: the only template that carries a
+      // non-workspace product bundle. `web` stays untouched because the CLI
+      // boots it too.
+      desktop: {
+        bundles: [
+          '@deepseek-ai/dsh-base',
+          '@deepseek-ai/dsh-web-app',
+          '@huaqiu/hardware-engineering',
+        ],
+      },
       headless: { bundles: ['@deepseek-ai/dsh-base', '@deepseek-ai/dsh-headless'] },
       sdk: { bundles: ['@deepseek-ai/dsh-base', '@deepseek-ai/dsh-sdk-app'] },
       'sdk-minimal': { bundles: ['@deepseek-ai/dsh-sdk-minimal'] },
     })
+  })
+
+  it('leaves the CLI/upstream web composition free of third-party bundles', () => {
+    // Regression guard: appending the product bundle to `web` would silently
+    // change every `dsh web` profile and every upstream Desktop install.
+    expect(PROFILE_TEMPLATES.web?.bundles).toEqual(['@deepseek-ai/dsh-base', '@deepseek-ai/dsh-web-app'])
   })
 })
