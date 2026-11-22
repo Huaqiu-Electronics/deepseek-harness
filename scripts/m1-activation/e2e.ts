@@ -12,6 +12,7 @@
 import { mkdirSync, writeFileSync } from 'node:fs'
 import { join, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
+import type { ToolCallBlock } from '@deepseek-ai/dsh-llm'
 import type { Context } from '@deepseek-ai/cordis'
 import { activate } from './run.ts'
 
@@ -42,7 +43,7 @@ async function callTool(ctx: Context, name: string, args: Record<string, unknown
   const started = Date.now()
   try {
     const output = await ctx.tools.execute({
-      calls: [{ type: 'tool-call', id: `m1-${index}`, name, arguments: JSON.stringify(args) }],
+      calls: [{ type: 'tool-call', id: `m1-${index}` as ToolCallBlock['id'], name, arguments: JSON.stringify(args) }],
       signal: new AbortController().signal,
     })
     const result = output.results[0]?.result
