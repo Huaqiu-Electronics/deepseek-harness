@@ -497,7 +497,7 @@ function renderLog(evidence: ActivationEvidence): string {
 async function main(): Promise<void> {
   const args = parseArgs(process.argv.slice(2))
   const distDir = typeof args.dist === 'string' ? args.dist : '/Users/admin/code/dsh-pcb-eda/dist'
-  const version = typeof args.version === 'string' ? args.version : '0.7.11'
+  const version = typeof args.version === 'string' ? args.version : '0.7.12'
   const outDir = typeof args.out === 'string' ? args.out : join(HARNESS_ROOT, 'scripts/m1-activation/out')
   const family = args.family === 'headless' ? 'headless' : 'desktop'
   const bundles = family === 'desktop'

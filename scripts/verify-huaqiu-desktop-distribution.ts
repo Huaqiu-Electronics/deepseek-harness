@@ -24,7 +24,7 @@ import { loadCordisYaml } from './cordis-yaml.ts'
 /** Product bundle name; the one name the Desktop profile selects. */
 export const PRODUCT_BUNDLE = '@huaqiu/hardware-engineering'
 /** Published product version every Huaqiu package in the closure must agree on. */
-export const PRODUCT_VERSION = '0.7.11'
+export const PRODUCT_VERSION = '0.7.12'
 /** Installation that must declare the bundle: the runtime `dsh` package. */
 export const INSTALLATION_MANIFEST = 'apps/cli/package.json'
 /** Desktop profile the product bundle must be selected by. */
