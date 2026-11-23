@@ -17,12 +17,12 @@ From the `deepseek-harness` workspace root, after `pnpm install` and after
 ```sh
 # Positive: the shipped desktop composition
 npx tsx scripts/m1-activation/run.ts --family desktop \
-  --dist ../dsh-pcb-eda/dist --version 0.7.10 \
+  --dist ../dsh-pcb-eda/dist --version 0.7.11 \
   --out scripts/m1-activation/out
 
 # Negative control: delete a required provider and require the run to fail
 npx tsx scripts/m1-activation/run.ts --family desktop --negative missing-provider \
-  --dist ../dsh-pcb-eda/dist --version 0.7.10 \
+  --dist ../dsh-pcb-eda/dist --version 0.7.11 \
   --out scripts/m1-activation/out
 ```
 

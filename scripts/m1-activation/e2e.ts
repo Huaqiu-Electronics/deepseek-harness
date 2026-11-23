@@ -88,7 +88,7 @@ async function main(): Promise<void> {
   mkdirSync(outDir, { recursive: true })
   const evidence = await activate({
     distDir: join(PRODUCT_ROOT, 'dist'),
-    version: '0.7.10',
+    version: '0.7.11',
     family: 'desktop',
     bundles: ['@deepseek-ai/dsh-base', '@deepseek-ai/dsh-web-app', '@huaqiu/hardware-engineering'],
     networkMode: 'record',

@@ -20,10 +20,11 @@ import { installNetworkGuard, type NetworkAttempt } from './network-guard.ts'
 
 const HARNESS_ROOT = resolve(fileURLToPath(new URL('../..', import.meta.url)))
 
-/** The nine rows the product bundle must mount. */
+/** The eleven rows the product bundle must mount. */
 export const EXPECTED_ROWS = [
   'huaqiu-auth',
   'huaqiu-artifacts',
+  'hardware-artifacts',
   'huaqiu-dsh-kicad',
   'dsh-tool-kicad-schematic-gen',
   'huaqiu-tool-part-search',
@@ -31,6 +32,7 @@ export const EXPECTED_ROWS = [
   'huaqiu-tool-symbol-footprint',
   'ui-theme-huaqiu',
   'dsh-huaqiu-about',
+  'dsh-hardware-ui',
 ] as const
 
 /** Tools that must be registered by those rows, grouped by the plugin that owns them. */
@@ -311,7 +313,7 @@ export async function activate(options: {
       }
     }
     services = ['webServer', 'tools', 'skills', 'systemPrompt', 'sandboxPolicy', 'sessions', 'fs',
-      'huaqiuAuth', 'huaqiuArtifacts']
+      'huaqiuAuth', 'huaqiuArtifacts', 'hardwareArtifacts']
       .filter(name => ctx.get(name) !== undefined)
     sandboxDefaultMode = (ctx.get('sandboxPolicy') as { defaultMode?: string } | undefined)?.defaultMode
     if (options.exercise !== undefined) exerciseResult = await options.exercise(ctx)
@@ -389,7 +391,7 @@ export async function activate(options: {
     ok: kicadSkills.length > 0,
     detail: kicadSkills.length > 0 ? kicadSkills.join(', ') : `no kicad skill in [${skills.join(', ')}]`,
   })
-  for (const service of ['huaqiuAuth', 'huaqiuArtifacts', 'webServer', 'tools', 'sandboxPolicy']) {
+  for (const service of ['huaqiuAuth', 'huaqiuArtifacts', 'hardwareArtifacts', 'webServer', 'tools', 'sandboxPolicy']) {
     checks.push({
       id: `service-provided:${service}`,
       ok: services.includes(service),
@@ -495,7 +497,7 @@ function renderLog(evidence: ActivationEvidence): string {
 async function main(): Promise<void> {
   const args = parseArgs(process.argv.slice(2))
   const distDir = typeof args.dist === 'string' ? args.dist : '/Users/admin/code/dsh-pcb-eda/dist'
-  const version = typeof args.version === 'string' ? args.version : '0.7.10'
+  const version = typeof args.version === 'string' ? args.version : '0.7.11'
   const outDir = typeof args.out === 'string' ? args.out : join(HARNESS_ROOT, 'scripts/m1-activation/out')
   const family = args.family === 'headless' ? 'headless' : 'desktop'
   const bundles = family === 'desktop'
