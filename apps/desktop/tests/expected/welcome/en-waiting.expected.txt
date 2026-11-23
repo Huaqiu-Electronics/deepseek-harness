@@ -1,5 +1,5 @@
-DeepSeek Harness
-DeepSeek Harness
+Huaqiu Hardware Engineering
+Huaqiu Hardware Engineering
 Browser didn’t open automatically?
 Copy sign-in link
 Completing sign in… [disabled]

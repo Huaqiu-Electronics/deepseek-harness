@@ -1,5 +1,5 @@
-DeepSeek Harness
-DeepSeek Harness
+Huaqiu Hardware Engineering
+Huaqiu Hardware Engineering
 Sign in timed out
 Sign in again
 Add API Key

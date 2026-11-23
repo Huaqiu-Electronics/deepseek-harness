@@ -186,6 +186,9 @@ function main(): void {
     buildPaths.packedDsh,
     buildPaths.packedVendor,
     buildPaths.packedLandlock,
+    // The Huaqiu product bundle is a published registry package now: the Desktop
+    // runtime install resolves @huaqiu/hardware-engineering and its patch-row
+    // dependencies from npm, so no packed product artifact enters this closure.
   ]
   const { values } = parseArgs({
     options: { from: { type: 'string', multiple: true }, out: { type: 'string' } },

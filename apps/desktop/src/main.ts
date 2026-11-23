@@ -34,6 +34,7 @@ import { installDesktopFileDrag } from './file-drag.ts'
 import { installDesktopDirectoryPicker } from './directory-picker.ts'
 import { installMicrophonePermissions } from './microphone-permissions.ts'
 import { DesktopBackendController } from './backend-controller.ts'
+import { DESKTOP_LEGACY_PROTOCOL_SCHEME, DESKTOP_PRODUCT_NAME, DESKTOP_PROTOCOL_SCHEME } from './branding.ts'
 import { DESKTOP_IPC, SCHEME, assertDesktopSender, type DesktopUpdateState } from './ipc.ts'
 import { readDeviceInfo } from './device-info.ts'
 import { desktopUpdateReadyConfirmation, formatDesktopMessage, resolveDesktopLocale, resolveDesktopStartupLocale } from './locale.ts'
@@ -267,6 +268,10 @@ function createWindow(preload: string, show = false, primary = false): BrowserWi
     minWidth: 520,
     minHeight: 600,
     show,
+    // The primary window carries the distribution's product name. The shipped client
+    // document title is a build-profile label ("DSH Local Build"), so the page title is
+    // not allowed to rename a Huaqiu window.
+    ...(primary ? { title: DESKTOP_PRODUCT_NAME } : {}),
     ...(process.platform === 'win32' && primary ? {
       titleBarStyle: 'hidden' as const,
       titleBarOverlay: { height: WINDOWS_TITLEBAR_HEIGHT, color: chromeFallbackFill(),
@@ -297,6 +302,10 @@ function createWindow(preload: string, show = false, primary = false): BrowserWi
     if (['http:', 'https:'].includes(new URL(url).protocol)) void shell.openExternal(url)
     return { action: 'deny' }
   })
+  if (primary) {
+    // Electron mirrors document.title into the window; keep the product name instead.
+    window.on('page-title-updated', (event) => { event.preventDefault(); window.setTitle(DESKTOP_PRODUCT_NAME) })
+  }
   if (process.platform === 'darwin' || process.platform === 'win32') {
     // Fullscreen hides native window controls; overlays drop their caption clearance.
     const sendFullscreen = (): void => {
@@ -1131,7 +1140,7 @@ async function main(): Promise<void> {
   const applicationIconPath = development ? join(app.getAppPath(), 'resources', 'icon-windows.png')
     : join(process.resourcesPath, 'icon.png')
   app.setAboutPanelOptions({
-    applicationName: 'DeepSeek Harness',
+    applicationName: DESKTOP_PRODUCT_NAME,
     applicationVersion: app.getVersion(),
     // The release has no separate build number; omit Electron's bundle version.
     version: '',
@@ -1456,10 +1465,11 @@ async function main(): Promise<void> {
     window.focus()
   }
 
-  if (app.isPackaged || process.env.DSH_DESKTOP_DEV_APP === '1') app.setAsDefaultProtocolClient('dsh')
+  if (app.isPackaged || process.env.DSH_DESKTOP_DEV_APP === '1') app.setAsDefaultProtocolClient(DESKTOP_PROTOCOL_SCHEME)
   app.on('open-url', (event, url) => {
     event.preventDefault()
-    if (url === 'dsh://open' || url === 'dsh://open/') focusPrimaryWindow()
+    const openUrl = (scheme: string): boolean => url === `${scheme}://open` || url === `${scheme}://open/`
+    if (openUrl(DESKTOP_PROTOCOL_SCHEME) || openUrl(DESKTOP_LEGACY_PROTOCOL_SCHEME)) focusPrimaryWindow()
   })
 
   app.on('activate', (_event, hasVisibleWindows) => {

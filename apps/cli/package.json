@@ -88,6 +88,7 @@
     "@deepseek-ai/dsh-web-app": "workspace:*",
     "@deepseek-ai/dsh-workflow-ptc": "workspace:*",
     "@deepseek-ai/schemastery": "workspace:~",
+    "@huaqiu/component-gen-app": "0.7.10",
     "@huaqiu/hardware-engineering": "0.7.10",
     "commander": "^15.0.0",
     "js-yaml": "^4.3.2",
