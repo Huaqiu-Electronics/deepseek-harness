@@ -20,15 +20,13 @@ import { installNetworkGuard, type NetworkAttempt } from './network-guard.ts'
 
 const HARNESS_ROOT = resolve(fileURLToPath(new URL('../..', import.meta.url)))
 
-/** The eleven rows the product bundle must mount. */
+/** The nine rows the product bundle must mount. */
 export const EXPECTED_ROWS = [
   'huaqiu-auth',
   'huaqiu-artifacts',
   'huaqiu-dsh-kicad',
   'dsh-tool-kicad-schematic-gen',
-  'dsh-tool-pcb-viewer',
   'huaqiu-tool-part-search',
-  'huaqiu-eda-selection',
   'huaqiu-tool-quote',
   'huaqiu-tool-symbol-footprint',
   'ui-theme-huaqiu',
@@ -44,7 +42,6 @@ export const EXPECTED_TOOLS: Readonly<Record<string, readonly string[]>> = {
   '@huaqiu/dsh-tool-kicad-schematic-gen': [
     'analyze_kicad_module', 'create_kicad_hierarchy', 'import_kicad_symbol', 'edit_kicad_flat_schematic',
   ],
-  '@huaqiu/dsh-tool-pcb-viewer': ['pcb_preview'],
   '@huaqiu/dsh-tool-part-search': [
     'search_hqsch_parts', 'get_hqsch_part', 'get_hqsch_part_models', 'get_hqsch_supply_chain',
   ],

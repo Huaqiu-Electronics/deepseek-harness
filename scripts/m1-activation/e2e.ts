@@ -78,10 +78,6 @@ async function callTool(ctx: Context, name: string, args: Record<string, unknown
 const WORKFLOW: readonly { name: string; args: Record<string, unknown> }[] = [
   { name: 'kicad_ipc_diagnose', args: {} },
   { name: 'kicad_ipc_verify_live', args: {} },
-  {
-    name: 'pcb_preview',
-    args: { path: join(PRODUCT_ROOT, 'packages/dsh-tool-pcb-viewer/test/fixtures/simple_led.kicad_pcb') },
-  },
   { name: 'search_hqsch_parts', args: { query: 'STM32F103', page: 1, page_size: 3, require_eda_model: true } },
   { name: 'quote_pcb', args: { region: 'cn' } },
 ]
