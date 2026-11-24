@@ -14,13 +14,20 @@
  * reserves its underlying track only after the panel covers the frame, without
  * animating those hidden columns.
  *
- * The panel has no header of its own: its two controls — presentation switch
- * and collapse — ride the docking kit's chrome seat at the end of the top-right
- * pane's tab strip, so the strip is the panel's whole top edge. The way back in
- * while collapsed is not here either: it is one button in the conversation
- * header (`ExpandButton.tsx`), because it exists only while this panel is
- * hidden. Floating panels remain in the same content tree; untransformed
- * ancestors let their fixed-position frames cross the column and conversation.
+ * The panel has no header of its own: its two controls — the presentation switch
+ * and the collapse button — are laid over the page's own header at the top-right
+ * of the column, so that header is the panel's whole top edge. Both come from
+ * `PanelToggleButton.tsx`, so the collapse button is the same glyph and size the
+ * conversation header shows to open the panel and the switch cannot look like a
+ * different widget. The docking kit's tab strip is not drawn: the panel holds the
+ * product's page (see `defaultSeed`), not a set of switchable tabs, so chips, the
+ * add control and the split control have nothing to act on. The whole overlay
+ * slides and hides with the docked items, so while the panel is collapsed none of
+ * these controls is drawn at that corner: the one button there is the
+ * conversation header's expand button (`ExpandButton.tsx`), which exists only
+ * while this panel is hidden. Floating panels remain in the same content tree;
+ * untransformed ancestors let their fixed-position frames cross the column and
+ * conversation.
  *
  * Tab bodies do not live here. Each one is a registration under its type's kind,
  * dispatched through the keyed `sidebar.right.pane.tab` seat (and a live chip
@@ -33,12 +40,11 @@ import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } fr
 import type { CSSProperties, ReactNode, RefObject } from 'react'
 import type { ContextMenuTarget } from '@deepseek-ai/dsh-client-ui-context-menu/client'
 import type { ShortcutCatalogEntry } from '@deepseek-ai/dsh-client-shortcuts/client'
-import { IconPanelLeftOutlineRegular, Tooltip } from '@deepseek-ai/dsh-client-ui-primitives'
 import type {
   HostObservable, InjectFace, PropsLocale, PropsRenderSlots, PropsRuntime, PropsStore,
 } from '@deepseek-ai/dsh-client-ui-slots'
 import type {} from '../contract/slots.ts'
-import type { DockIntents, DockMode, DockSurfaceProps, FloatRect, TabId, TabRecord, TabRenderer } from '@deepseek-ai/dsh-client-ui-dockkit'
+import type { DockIntents, DockSurfaceProps, FloatRect, TabId, TabRecord, TabRenderer } from '@deepseek-ai/dsh-client-ui-dockkit'
 import { canSplit, dockPaneIds, DockLayout, findPaneContentTab } from '@deepseek-ai/dsh-client-ui-dockkit'
 import type { HalvesFit, LayoutState, PaneId } from '@deepseek-ai/dsh-client-ui-dockkit'
 import type { SessionId } from '@deepseek-ai/dsh-session/types'
@@ -52,6 +58,7 @@ import type { TabOccurrence } from '../tab-domain.ts'
 import type { SidebarRightTabNavigation } from '../contract/slots.ts'
 import type { TabHookContext } from '../tab-info.ts'
 import { flashPane } from './flash.ts'
+import { PanelFullscreenButton, PanelToggleButton } from './PanelToggleButton.tsx'
 import css from './SidebarRight.module.css'
 
 /** The store share the seat receives. */
@@ -105,7 +112,13 @@ export interface SidebarRightInjected {
   readonly closeTab: (tabId: TabId) => void
   /** Split through the same controller as keyboard commands. */
   readonly splitPane: (paneId: PaneId) => void
-  /** Toggle the dock panel using its current display mode. */
+  /**
+   * Switch the panel between the normal track and covering the viewport.
+   *
+   * Resolved against the on-screen Session rather than the focused element: the
+   * button lives in the panel's chrome, which names no dock pane, so a
+   * focus-scoped target would leave the click with nothing to act on.
+   */
   readonly toggleFullscreen: () => void
   readonly hooks: {
     readonly contextMenuTarget: HostObservable<ContextMenuTarget | null>
@@ -250,64 +263,34 @@ function titlesFor(panel: PanelProps): TabRenderer {
   return tab => <TabSlot key={tab.id} {...panel} tab={tab} seat="sidebar.right.pane.tab.title" fallback={tab.title} />
 }
 
-/** Expand-to-viewport glyph from the shared product artwork. */
-function FullscreenGlyph(): ReactNode {
-  return (
-    <svg width="16" height="16" viewBox="0 0 16 16" fill="none" aria-hidden="true">
-      <path d="M2.33203 10.4054V13.1681C2.33229 13.444 2.55605 13.6681 2.83203 13.6681H5.49512V14.6681H2.83203C2.00376 14.6681 1.33229 13.9963 1.33203 13.1681V10.4054H2.33203ZM14.6689 13.1681C14.6687 13.996 13.9968 14.6676 13.1689 14.6681H10.4951V13.6681H13.1689C13.4445 13.6676 13.6687 13.4437 13.6689 13.1681V10.4054H14.6689V13.1681ZM13.1689 1.33118C13.9969 1.33163 14.6688 2.00315 14.6689 2.83118V5.4054H13.6689V2.83118C13.6688 2.55544 13.4446 2.33162 13.1689 2.33118H10.4951V1.33118H13.1689ZM5.49512 2.33118H2.83203C2.55598 2.33118 2.33218 2.55516 2.33203 2.83118V5.4054H1.33203V2.83118C1.33218 2.00288 2.00369 1.33118 2.83203 1.33118H5.49512V2.33118Z" fill="currentColor" />
-    </svg>
-  )
-}
-
-/** Restore-from-fullscreen glyph from the shared product artwork. */
-function ExitFullscreenGlyph(): ReactNode {
-  return (
-    <svg width="16" height="16" viewBox="0 0 16 16" fill="none" aria-hidden="true">
-      <path d="M9 2.5V6C9 6.26522 9.10536 6.51957 9.29289 6.70711C9.48043 6.89464 9.73478 7 10 7H13.5" stroke="currentColor" />
-      <path d="M7 13.5V10C7 9.73478 6.89464 9.48043 6.70711 9.29289C6.51957 9.10536 6.26522 9 6 9H2.5" stroke="currentColor" />
-    </svg>
-  )
-}
-
-/** The panel's two controls, placed by the kit at the top-right pane's strip end. */
-function PanelChrome({ sessionId, fullscreen, actions, t, shortcuts, toggleFullscreen }: Pick<PanelProps, 'sessionId' | 'actions' | 't' | 'fullscreen' | 'shortcuts' | 'toggleFullscreen'>): ReactNode {
-  const next: DockMode = fullscreen ? 'push' : 'fullscreen'
+/** The panel's two controls, laid over the page header at the column's top-right. */
+function PanelChrome({ sessionId, fullscreen, actions, t, shortcuts, toggleFullscreen }: Pick<PanelProps,
+'sessionId' | 'fullscreen' | 'actions' | 't' | 'shortcuts' | 'toggleFullscreen'>): ReactNode {
   const modeLabel = fullscreen ? t('chrome.exitFullscreen') : t('chrome.toFullscreen')
   const mode = shortcuts.find(entry => entry.id === 'pane.fullscreen.toggle')
   const toggle = shortcuts.find(entry => entry.id === 'sidebar.right.toggle')
   return (
     <>
-      <Tooltip label={modeLabel} shortcutKeys={mode?.keys} side="bottom" delayMs={500}>
-        <button
-          type="button"
-          className={css.iconButton}
-          aria-label={modeLabel}
-          aria-keyshortcuts={mode?.aria}
-          data-sidebar-right-mode={next}
-          onClick={toggleFullscreen}
-        >
-          {fullscreen ? <ExitFullscreenGlyph /> : <FullscreenGlyph />}
-        </button>
-      </Tooltip>
-      <Tooltip label={t('chrome.collapse')} shortcutKeys={toggle?.keys} side="bottom" delayMs={500}>
-        <button
-          type="button"
-          className={css.iconButton}
-          aria-label={t('chrome.collapseAria')}
-          aria-keyshortcuts={toggle?.aria}
-          data-sidebar-right-toggle
-          onClick={() => { actions.toggleExpanded(sessionId) }}
-        >
-          <IconPanelLeftOutlineRegular className={css.collapseGlyph} />
-        </button>
-      </Tooltip>
+      <PanelFullscreenButton
+        fullscreen={fullscreen} label={modeLabel} ariaLabel={modeLabel}
+        shortcutKeys={mode?.keys} ariaKeyshortcuts={mode?.aria} onToggle={toggleFullscreen}
+      />
+      <PanelToggleButton
+        label={t('chrome.collapse')}
+        ariaLabel={t('chrome.collapseAria')}
+        shortcutKeys={toggle?.keys}
+        ariaKeyshortcuts={toggle?.aria}
+        onToggle={() => { actions.toggleExpanded(sessionId) }}
+        marker="data-sidebar-right-toggle"
+      />
     </>
   )
 }
 
 /**
- * The panel: the docked surface with the two controls in its top-right strip,
- * anchored to the frame's right edge and slid off it while collapsed.
+ * The panel: the docked surface with the page's header as its top edge, and the
+ * two controls laid over that header's end. Anchored to the frame's right edge
+ * and slid off it while collapsed.
  */
 function SidebarPanel(panel: PanelProps & { width: number; panelRef: RefObject<HTMLDivElement> }): ReactNode {
   const { sessionId, surface, actions, t, openTab, width, reportRoom, fullscreen, panelRef } = panel
@@ -364,12 +347,19 @@ function SidebarPanel(panel: PanelProps & { width: number; panelRef: RefObject<H
           active={panel.active}
           keepMounted={tab => types.find(type => type.kind === tab.kind)?.keepMounted === true}
           getTabTriggerProps={panel.getTabTriggerProps} tabMenuOpen={panel.tabMenuOpen}
-          chrome={<PanelChrome
-            sessionId={sessionId} fullscreen={fullscreen} actions={actions} t={t}
-            shortcuts={panel.shortcuts} toggleFullscreen={panel.toggleFullscreen}
-          />}
           onRoom={reportRoom}
         />
+        {/* Laid over the page's header rather than dealt into the docked layout:
+            the page owns the panel's top edge, and these two controls sit at its
+            end, where the strip's chrome used to be. The whole overlay rides the
+            docked items' slide (see the stylesheet), so a collapsed panel leaves
+            only the conversation header's one expand button at this corner. */}
+        <div className={css.panelChrome} data-sidebar-right-chrome>
+          <PanelChrome
+            sessionId={sessionId} fullscreen={fullscreen} actions={actions} t={t}
+            shortcuts={panel.shortcuts} toggleFullscreen={panel.toggleFullscreen}
+          />
+        </div>
       </div>
     </div>
   )

@@ -136,6 +136,14 @@ export interface SidebarRightTabDefinition {
   readonly title: (address: string) => string
   /** Entry boxes for the guide page. Omit to stay off it. */
   readonly guide?: readonly SidebarRightGuideEntry[]
+  /**
+   * This type is the product's default page: an empty docked pane seeds it when
+   * the column expands. At most one registered type may declare it.
+   *
+   * It is how a product whose panel IS one page (a dedicated workspace) opens
+   * on that page rather than on the guide — see `defaultSeed`.
+   */
+  readonly default?: boolean
 }
 
 /** What a routing decision settles on: who draws the address, and as what. */

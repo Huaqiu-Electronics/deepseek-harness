@@ -3,8 +3,16 @@ import { z } from 'zod'
 import { EMPTY_HISTORY, type LayoutState } from '@deepseek-ai/dsh-client-ui-dockkit'
 import type { SurfaceState } from './stores.ts'
 
-/** Persistence namespace shared by scoped stores and startup discovery. */
-export const sidebarPersistence = 'dsh.sidebar-right.v1'
+/**
+ * Persistence namespace shared by scoped stores and startup discovery.
+ *
+ * `v2` because the panel's default page changed: a layout saved under `v1` can
+ * hold a guide tab that this product no longer draws or reaches (the strip is
+ * gone), and restoring it would open the panel on a page with no way back. A
+ * new namespace retires those layouts instead of teaching the validator every
+ * past default page.
+ */
+export const sidebarPersistence = 'dsh.sidebar-right.v2'
 
 const paneId = z.string().regex(/^(?:pane|float)[1-9][0-9]*$/u)
 const splitId = z.string().regex(/^split[1-9][0-9]*$/u)

@@ -19,11 +19,23 @@ export interface SidebarRightSeed {
 }
 
 /**
- * Resolve the default page from the registered entry count.
+ * Resolve the default page.
+ *
+ * A type may declare itself the product's default page (`default: true` in its
+ * definition); the panel seeds that kind into a fresh docked pane, which is what
+ * makes an expansion show the product's own page instead of a general one. A
+ * product that declares no default keeps the older rule: the registry's sole
+ * guide entry, else the guide.
  * @param tabs - current tab registry.
- * @returns the sole entry, or the guide when there are zero or multiple entries.
+ * @returns the declared default page, else the sole guide entry, else the guide.
  */
 export function defaultSeed(tabs: SidebarRightTabRegistry): SidebarRightSeed {
+  const declared = tabs.entries().filter(definition => definition.default === true)
+  if (declared.length > 1) {
+    throw new Error(`sidebarRight: ${String(declared.length)} tab types declare themselves the default page`)
+  }
+  const preferred = declared[0]
+  if (preferred !== undefined) return { kind: preferred.kind, title: preferred.title(pageAddress(preferred.kind)) }
   const [only, ...others] = tabs.guide()
   const single = only !== undefined && others.length === 0
   const kind = single ? only.kind : GUIDE_KIND

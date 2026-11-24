@@ -11,7 +11,8 @@
   height: 15px;
 }
 
-.expanded {
+/* Hid but still measured: the mobile header keeps the title's width during the slide. */
+.visuallyHidden {
   visibility: hidden;
 }
 

@@ -49,7 +49,7 @@ kind: "package-reference"
 
 席位通过 `ctx.layout.openRightbar(track, fullscreen)` / `closeRightbar()` 报告呈现，框架不注入本包。宽屏切换全屏不改变中栏宽度；宽度拖拽区只在普通展开态显示。独立浮窗及 `float`/`dock` 操作保持可用。
 
-面板没有标题行。它的两个控件——形态切换与折叠按钮——搭在套件 chrome 席位上，位于右上格 tab 条的最末端，因此 tab 条就是面板的整条上边。每条 tab 条从左到右读作：在允许时带关闭按钮的 tab 胶囊，添加控件（只在该格没有引导 tab 时绘制；它通过 `ctx.sidebarRight.openTab` 在该格打开引导页），该格的分栏控件，以及右上格里的两个面板控件。窄格里只有 chip 让位；其后的控件从不收缩或被裁切。
+面板没有自己的标题行：停靠格里的页面占据它的整条上边。它的两个控件——形态切换与折叠按钮——叠放在页面 header 的末端，位于一条 38px 高的带状区里，与下方 header 行共用中线，因此页面 header 读起来就是面板的整条上边。两者都随面板一起滑动：列收起时该叠层与停靠项一同隐藏，那个角落便只显示会话 header 里的一个展开按钮，绝不会出现两个控件重叠。叠层还比停靠宿主高一层，而宿主在全屏时会抬升，因此两种呈现下按钮都可点击。套件的停靠 tab 条不绘制（`.panel :global([data-dockkit-host='dock']) [data-dockkit-strip]`），因为面板承载的是产品的页面而不是一组可切换的 tab：chip、添加控件与分栏控件在这里无事可做，而浮窗仍保留自己的 header 与自己的 tab 条。想要回 tab 条的产品把这条规则去掉即可；停靠机制本身没有改动。
 
 <a id="the-expand-button"></a>
 ## 展开按钮
@@ -73,7 +73,7 @@ root 作用域的 `rightbar` 入口通过独立的 `rightbar.session` 子树渲�
 
 停靠面的最后一个 tab 还多带一条规则，由 store 的 `closeTab` 决定并经 `canCloseTab` 镜像给套件：作为唯一停靠 tab 的引导页不画关闭控件或菜单里的关闭项，也忽略中键点击——它的 chip 呈安静样式，在没有扩展条目时次键按下也不弹出菜单——对它的编程式关闭什么都不记录；任何其它 tab 独自留下时，点击关闭会连同整列一起收起，记为一条历史，布局保持为空，直到下次展开时创建当时的默认页。浮动面板不参与这条规则：前台 Session 的浮窗无论列是否展开都会渲染，其 tab 照常关闭。
 
-store 将每个 Session 的布局、标签身份、选中项、分栏比例、浮窗矩形、呈现方式和身份计数以 JSON 保存到 localStorage 的 `dsh.sidebar-right.v1.<sessionId>`。刷新时在渲染标签正文前恢复布局；不同 Session 的布局独立。provider 根据保留的标签身份和资源地址恢复自身内容，包括[终端重连](../ui-sidebar-terminal/README.zh.md#use-this-package)。导航参数、资源内容和活动连接不属于布局状态。撤销历史只保留在内存中，刷新后清空。采用布局或启动探测前会校验保存字段类型、节点成员关系、选中项、身份计数，以及单格或左右两格的停靠布局；无效数据只清除对应 Session 的 key。存储失败时，当前布局仍可在内存中使用。同源窗口共享每个 Session 最后保存的布局；活动窗口在刷新前保留各自的当前布局。
+store 将每个 Session 的布局、标签身份、选中项、分栏比例、浮窗矩形、呈现方式和身份计数以 JSON 保存到 localStorage 的 `dsh.sidebar-right.v2.<sessionId>`。命名空间已越过 `v1`：面板仍绘制 tab 条时写下的布局可能含有面板如今既不显示也无法关闭的通用 tab，任何迁移都不能让那个 tab 重新可达，因此 `v1` 的 key 不再读取。刷新时在渲染标签正文前恢复布局；不同 Session 的布局独立。provider 根据保留的标签身份和资源地址恢复自身内容，包括[终端重连](../ui-sidebar-terminal/README.zh.md#use-this-package)。导航参数、资源内容和活动连接不属于布局状态。撤销历史只保留在内存中，刷新后清空。采用布局或启动探测前会校验保存字段类型、节点成员关系、选中项、身份计数，以及单格或左右两格的停靠布局；无效数据只清除对应 Session 的 key。存储失败时，当前布局仍可在内存中使用。同源窗口共享每个 Session 最后保存的布局；活动窗口在刷新前保留各自的当前布局。
 
 `sidebarRight.openTabs` 发布所有已保存和已采用 Session 的打开标签元数据，并保持快照引用稳定。启动时读取布局 key，不挂载非当前内容、pin 文件或激活 Agent。已采用的 store 在标签成员变化时更新自己的元数据，永久清除的 scope 删除对应记录。其他窗口写入 storage 不会覆盖当前窗口的活动成员关系。provider 使用该清单恢复自己的资源生命周期。
 
@@ -82,7 +82,7 @@ store 将每个 Session 的布局、标签身份、选中项、分栏比例、�
 
 tab 类型分两阶段注册，随包发布的引导类型走的正是别的包的类型走的同一条公开路径（`ui-sidebar-documentpreview` 是活的证明）。两个阶段都在类型自己的 `ctx.effect` 里，因此注册与创建它的插件同生共死。
 
-1. **类型**——`ctx.sidebarRightTabs.register({ id, kind, patterns?, priority?, canOpen?, title, guide?, keepMounted? })`，一份没有运行时钩子的静态声明，返回 disposer。`id` 是这个实现在 tab 系统里的身份，在全部注册中唯一（包名是天然取值；随包引导页是 `@deepseek-ai/dsh-client-ui-sidebar-right/guide`）：一旦 extension 可以接管 builtin 的 kind，kind 就不再唯一，所以实现要自己命名，同一 `id` 的第二次注册会 throw。资源类型给出 `patterns`，即作用于 `dsh-resource://` 地址的 glob：含 `:` 的匹配整个地址（`dsh-resource://file/**`）；不含的匹配 URI 路径的任意深度且忽略大小写（`*.md`），不是 URI 的地址不匹配任何这类模式。页类型——引导页、文件树——不给出模式，按 kind 打开。`canOpen(address)` 否决一次命中。`title(address)` 是 tab chip 的文字，在 tab 打开时捕获。`guide` 列出引导页的入口框；选中一个即把贡献它的类型作为页打开。一个 `kind` 最多承载一份 `builtin` 与一份 `extension` 注册（extension 生效；它离开后 builtin 恢复）；kind 上的其它任何撞名都 throw。`id` 同时也是该类型正文与标题注册时用的 key，因此 extension 与它接管的 builtin 各占一个格位，席位渲染生效的那个。
+1. **类型**——`ctx.sidebarRightTabs.register({ id, kind, patterns?, priority?, canOpen?, title, guide?, keepMounted?, default? })`，一份没有运行时钩子的静态声明，返回 disposer。`id` 是这个实现在 tab 系统里的身份，在全部注册中唯一（包名是天然取值；随包引导页是 `@deepseek-ai/dsh-client-ui-sidebar-right/guide`）：一旦 extension 可以接管 builtin 的 kind，kind 就不再唯一，所以实现要自己命名，同一 `id` 的第二次注册会 throw。资源类型给出 `patterns`，即作用于 `dsh-resource://` 地址的 glob：含 `:` 的匹配整个地址（`dsh-resource://file/**`）；不含的匹配 URI 路径的任意深度且忽略大小写（`*.md`），不是 URI 的地址不匹配任何这类模式。页类型——引导页、文件树——不给出模式，按 kind 打开。`canOpen(address)` 否决一次命中。`title(address)` 是 tab chip 的文字，在 tab 打开时捕获。`guide` 列出引导页的入口框；选中一个即把贡献它的类型作为页打开。一个 `kind` 最多承载一份 `builtin` 与一份 `extension` 注册（extension 生效；它离开后 builtin 恢复）；kind 上的其它任何撞名都 throw。`id` 同时也是该类型正文与标题注册时用的 key，因此 extension 与它接管的 builtin 各占一个格位，席位渲染生效的那个。
 2. **正文**——`ctx.slots.register({ name: 'sidebar.right.pane.tab', key: definition.id }, Body)` 通过框架注入的 `useTabInfo()` 读取 `{ sidebar, panel, tab }`。`sidebar` 提供开合与全屏信息，`panel.id` 标识所在分栏，`panel.isFloating` 表示该分栏是否为浮窗；两者随 tab 在停靠分栏与浮窗之间拖动而更新，`tab.id` 保持不变。`tab` 包含原记录字段、`visible`、`navigation`、`signal` 和 `actions`。这些字段不再作为平铺owner props传入；类型自己的store仍使用 `useStore`/`actions`。可选标题注册及引导替换共享该hook；未注册标题时使用打开时保存的文本。标题包装保留 tab 与 occurrence 的 DOM 标记，但不引入布局盒，因此停靠 tab 和浮窗标题中的图标间距与垂直对齐由 dockkit 控制。
 
 由哪个类型打开资源遵循编辑器解析器的惯例：`patterns` 命中的类型先按 `priority` 档排序——`extension`（产品外的类型，最高档，也是未命名时的默认）、`builtin`、`fallback`（任何更具体的类型都应胜过的通用查看器）——再按命中模式的长度，再按注册顺序；`canOpen` 会剔除候选。各档是字符串字面量，因此别的包里的类型不需要从这里做运行时导入。`candidates(address)` 返回排序，`claim(address, kind?)` 返回决定；指定 `kind` 时跳过它的 glob 但保留它的 `canOpen`。
@@ -124,7 +124,7 @@ root 作用域的 `sidebar.right.tab.guide.actions` list 有注册项时，引�
 
 终端等需要独立实例的 tab 类型可声明 `multiple: true`。每次打开都会获得独立内容地址，因此移动和停靠会保留这些实例；普通页面仍在每个格内去重。
 
-默认页取决于已注册的引导入口数，不取决于 tab 类型数或已打开的 tab 数。恰好一个入口时直接打开对应页面；没有入口或有多个入口时打开引导页。显式添加引导页始终打开引导页。关闭遵循[唯一停靠 tab 规则](#state)。
+类型可以用 `default: true` 声明自己是面板的默认页：空的停靠格展开时即播种该 kind，面板本身就是一页的产品（专用工作区）因此打开在自己的页面上。最多只能有一个已注册类型这样声明；有两个时 `defaultSeed` 抛错。没有声明默认页时沿用旧规则：默认页取决于已注册的引导入口数，不取决于 tab 类型数或已打开的 tab 数。恰好一个入口时直接打开对应页面；没有入口或有多个入口时打开引导页。显式添加引导页始终打开引导页。关闭遵循[唯一停靠 tab 规则](#state)。
 
 引导 tab 是一枚弱化的罗盘，下方是各已注册类型贡献的每个 `guide` 条目一个入口胶囊，按 `order` 排列并在正文中居中；引导页自己没有文字。胶囊显示条目的图标——条目没注册图标时用引导页自己更浅的立方体占位符——和标题；列出的条目不超过四个时，注册了 `description` 的条目在标题下显示它，更长的列表则去掉所有描述。点击默认胶囊或**更多工具**菜单行会调用 `tab.actions.openTab(entry.kind, { replaceTab: true })`，再调用 `tab.actions.close()`，于是引导页让位给它打开的页，该页被揭示时引导页关闭自己；在聚焦的引导页上用快捷键打开页时也是如此。一个格最多持有一个引导 tab。tab 条的添加控件只在该格没有引导 tab 时绘制，并以 `openTab('guide', { paneId, revealIfOpened: false })` 在该格打开一个，这样别的格里的引导页不会截走这次点击；把引导页开进已有引导页的格则改为聚焦它；把引导页拖入、放入或收回到这样的格会合并进去——来者关闭，该格自己的被聚焦；对引导页 `duplicateTab` 不记录任何东西。分栏、展开且为空的根格、以及唯一 tab 拖到本格边缘分屏后腾出的格使用相同的默认页规则，每个新格一个 tab；这种本格边缘拖放让被拖的 tab 保持聚焦。普通的 `openTab('guide')` 只在活跃或指定分栏内打开或聚焦引导页。对空分栏执行 split 不产生变化，也不返回新分栏。产品最多保留左右两格，默认均分，分隔条限定在 20%～80%。宽度不足以容纳两格时不允许新分栏；已有两格时，正文拖放用于跨格移动，不再创建第三格。达到两格上限时禁用分栏控件并提供可聚焦的原因提示；关闭回单格后重新启用。
 

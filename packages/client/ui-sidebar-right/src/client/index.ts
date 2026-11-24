@@ -224,7 +224,13 @@ export function apply(ctx: ClientContext): void {
       },
       reportAutoFullscreen: (value) => { autoFullscreen = value },
       splitPane: (paneId) => { controller.split(paneId) },
-      toggleFullscreen: () => { const target = controller.commandTarget(); if (target !== undefined) controller.toggleFullscreen(target) },
+      // The switch is panel chrome, not pane content: resolve against the
+      // on-screen Session explicitly. A focus-scoped target is undefined once
+      // the button itself holds focus, which is why the click used to do nothing.
+      toggleFullscreen: () => {
+        const target = controller.commandTarget(null)
+        if (target !== undefined) controller.toggleFullscreen(target)
+      },
       openTab: (kind, options) => { controller.openTab(kind, options) },
     }
     const tabTypes = { subscribe: (listener: () => void) => tabs.subscribe(listener), getSnapshot: () => tabs.entries() }

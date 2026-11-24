@@ -1,6 +1,6 @@
 /*
- * The Sidebar's own chrome only: the panel box, its two strip-end controls, and
- * the placeholder tab bodies. Everything inside the split tree is styled by the
+ * The Sidebar's own chrome only: the panel box, its corner controls, and the
+ * placeholder tab bodies. Everything inside the split tree is styled by the
  * docking kit; the expand button in the conversation header has its own sheet.
  * Tokens only.
  */
@@ -48,10 +48,14 @@
 }
 
 /* Only docked Grid items slide. Their common ancestor remains untransformed
-   and without a stacking context, so fixed floating children escape. */
+   and without a stacking context, so fixed floating children escape. The
+   chrome overlay rides with them: it is the panel's own corner, so a hidden
+   panel must not leave a button behind where the conversation's expand button
+   sits. */
 .panel :global([data-dockkit-host='dock']),
 .panel :global([data-dockkit-empty]),
-.panel :global([data-dockkit-divider]) {
+.panel :global([data-dockkit-divider]),
+.panel .panelChrome {
   transform: translateX(var(--dsh-sidebar-width));
   visibility: hidden;
   transition:
@@ -61,7 +65,8 @@
 
 .panel[data-sidebar-right-open] :global([data-dockkit-host='dock']),
 .panel[data-sidebar-right-open] :global([data-dockkit-empty]),
-.panel[data-sidebar-right-open] :global([data-dockkit-divider]) {
+.panel[data-sidebar-right-open] :global([data-dockkit-divider]),
+.panel[data-sidebar-right-open] .panelChrome {
   transform: none;
   visibility: visible;
   transition: transform var(--ds-transition-duration-slow) var(--ds-ease-in-out);
@@ -74,7 +79,8 @@
 @starting-style {
   .panel[data-sidebar-right-opening] :global([data-dockkit-host='dock']),
   .panel[data-sidebar-right-opening] :global([data-dockkit-empty]),
-  .panel[data-sidebar-right-opening] :global([data-dockkit-divider]) {
+  .panel[data-sidebar-right-opening] :global([data-dockkit-divider]),
+  .panel[data-sidebar-right-opening] .panelChrome {
     transform: translateX(var(--dsh-sidebar-width));
   }
 }
@@ -123,51 +129,62 @@
   .panel :global([data-dockkit-host='dock']),
   .panel :global([data-dockkit-empty]),
   .panel :global([data-dockkit-divider]),
+  .panel .panelChrome,
   .panel[data-sidebar-right-open] :global([data-dockkit-host='dock']),
   .panel[data-sidebar-right-open] :global([data-dockkit-empty]),
-  .panel[data-sidebar-right-open] :global([data-dockkit-divider]) {
+  .panel[data-sidebar-right-open] :global([data-dockkit-divider]),
+  .panel[data-sidebar-right-open] .panelChrome {
     transition: none;
   }
 }
 
 /* The geometry of a message's action row button (ui-chat MessageIconActions),
    shared with the kit's split control beside it: a 28px circle around a 15px glyph. */
-.iconButton {
-  display: inline-flex;
-  flex: none;
-  align-items: center;
-  justify-content: center;
-  width: 28px;
-  height: 28px;
-  padding: 6px;
-  color: var(--dsw-alias-label-secondary);
-  line-height: 1;
-  background: transparent;
-  border: none;
-  border-radius: var(--dsw-radius-sm);
-  cursor: pointer;
-}
-
-.iconButton svg {
-  width: 15px;
-  height: 15px;
-}
-
-@media (hover: hover) {
-  .iconButton:hover {
-    background: var(--dsw-alias-interactive-bg-hover);
-  }
-}
-
-/* The expand button's glyph, so collapse and expand share one affordance. */
-.collapseGlyph {
-  transform: scaleX(-1);
-}
-
 .panelBody {
+  position: relative;
   display: flex;
   flex: 1 1 auto;
   min-height: 0;
+}
+
+/*
+ * The panel holds the product's page, not a set of switchable tabs: the kit's
+ * tab strip is not drawn, so its chips, add control and split control have
+ * nothing to act on. What is left of the panel chrome is the two controls in
+ * `.panelChrome` below, laid over the page's own header, which is therefore the
+ * panel's top edge. Scoped to docked panes: a floating panel keeps its own
+ * header and its own strip.
+ */
+.panel :global([data-dockkit-host='dock']) :global([data-dockkit-strip]) {
+  display: none;
+}
+
+/*
+ * The two controls sit where the strip's chrome used to: the column's top-right
+ * corner, centred on the 38px band the page header is drawn in. Only these are
+ * pointer targets in this layer, so the header underneath keeps its own clicks
+ * everywhere else. The rightmost control's inset matches the conversation
+ * header's corner seat, so the expanded and collapsed corners line up. The whole
+ * overlay hides with the docked items above, so a collapsed panel leaves just
+ * the conversation header's one expand button here.
+ */
+.panelChrome {
+  position: absolute;
+  top: 0;
+  right: 12px;
+  /* One above the docked host: the host rises from 10 to 40 in fullscreen, and
+     a fixed 21 would let the page header paint over these buttons there. The
+     floats (60) still sit above the chrome. */
+  z-index: calc(var(--dsh-dockkit-dock-layer) + 1);
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  height: 38px;
+  pointer-events: none;
+}
+
+.panelChrome > * {
+  pointer-events: auto;
 }
 
 @media (pointer: coarse) {

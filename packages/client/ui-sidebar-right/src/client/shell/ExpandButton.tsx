@@ -17,12 +17,11 @@
 import type { ShortcutCatalogEntry } from '@deepseek-ai/dsh-client-shortcuts/client'
 import type { InjectFace, HostObservable } from '@deepseek-ai/dsh-client-ui-slots'
 import type { ReactNode } from 'react'
-import clsx from 'clsx'
-import { Button, IconPanelLeftOutlineRegular, isMobileDevice, Tooltip } from '@deepseek-ai/dsh-client-ui-primitives'
+import { isMobileDevice } from '@deepseek-ai/dsh-client-ui-primitives'
 import type { PropsLocale, PropsRuntime, PropsStore } from '@deepseek-ai/dsh-client-ui-slots'
 import type {} from '@deepseek-ai/dsh-client-ui-conversation/client'
 import type { createSidebarRightStore } from '../stores.ts'
-import css from './ExpandButton.module.css'
+import { PanelToggleButton } from './PanelToggleButton.tsx'
 
 /** The button's props: the header corner seat, the shared store, and copy. */
 export type ExpandButtonProps =
@@ -39,18 +38,16 @@ export function ExpandButton({ sessionId, useStore, actions, t, useShortcuts }: 
   const expanded = useStore(state => state.bySession[sessionId]?.layout.expanded ?? false)
   if (expanded && !isMobileDevice()) return null
   return (
-    <Tooltip label={t('chrome.expand')} shortcutKeys={shortcut?.keys} side="bottom" delayMs={500} disabled={expanded}>
-      <Button
-        size="sm"
-        className={clsx(css.button, expanded && css.expanded)}
-        disabled={expanded}
-        aria-label={t('chrome.expandAria')}
-        aria-keyshortcuts={shortcut?.aria}
-        data-sidebar-right-expand
-        onClick={() => { actions.setExpanded(sessionId, true) }}
-      >
-        <IconPanelLeftOutlineRegular className={css.icon} />
-      </Button>
-    </Tooltip>
+    <PanelToggleButton
+      label={t('chrome.expand')}
+      ariaLabel={t('chrome.expandAria')}
+      shortcutKeys={shortcut?.keys}
+      ariaKeyshortcuts={shortcut?.aria}
+      onToggle={() => { actions.setExpanded(sessionId, true) }}
+      marker="data-sidebar-right-expand"
+      disabled={expanded}
+      visuallyHidden={expanded}
+      tooltipDisabled={expanded}
+    />
   )
 }
