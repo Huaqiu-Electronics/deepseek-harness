@@ -5,7 +5,7 @@
   "private": true,
   "license": "MIT",
   "author": {
-    "name": "Hangzhou DeepSeek Artificial Intelligence Co., Ltd."
+    "name": "Huaqiu Electronics"
   },
   "type": "module",
   "main": "lib/main.js",

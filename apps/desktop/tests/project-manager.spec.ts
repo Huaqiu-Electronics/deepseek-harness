@@ -5,6 +5,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest'
 import { resolveDesktopPaths } from '../src/paths.ts'
 import { DesktopProjectManager } from '../src/project-manager.ts'
 import { readProfilePlugins } from '@deepseek-ai/dsh-app-boot'
+import { PROFILE_TEMPLATES } from '@deepseek-ai/dsh-official-bundles'
 import { runtimeFixture } from './runtime-fixture.ts'
 
 const roots: string[] = []
@@ -328,5 +329,69 @@ describe('desktop link-backend projections', () => {
     expect(existsSync(join(profile, '.dsh-module-fallback'))).toBe(false)
     expect(lstatSync(join(profile, 'node_modules', 'bridge'), { throwIfNoEntry: false })).toBeUndefined()
     expect(existsSync(join(target, 'package.json'))).toBe(true)
+  })
+})
+
+/**
+ * The product bundle must be *selected*, not merely installed. A Desktop install
+ * that ships `@huaqiu/hardware-engineering` but never lists it in
+ * `dsh.profile.bundles` boots with its features silently missing — the loader
+ * reports a skipped bundle as one stderr line and carries on.
+ */
+describe('product bundle selection', () => {
+  const PRODUCT = '@huaqiu/hardware-engineering'
+  const template = PROFILE_TEMPLATES.desktop!.bundles
+  const bundlesOf = (manager: DesktopProjectManager): string[] =>
+    (JSON.parse(readFileSync(join(manager.paths.profile, 'package.json'), 'utf8')) as {
+      dsh: { profile: { bundles: string[] } }
+    }).dsh.profile.bundles
+
+  it('selects the product bundle on a fresh profile and stays idempotent', async () => {
+    const { manager } = setup()
+    await manager.applyRelease()
+    expect(bundlesOf(manager)).toEqual(template)
+    expect(bundlesOf(manager)).toContain(PRODUCT)
+    await manager.applyRelease()
+    expect(bundlesOf(manager)).toEqual(template)
+  })
+
+  it('adds the product bundle to an existing upstream profile and keeps its user bundles', async () => {
+    const { manager } = setup()
+    mkdirSync(manager.paths.profile, { recursive: true })
+    writeFileSync(join(manager.paths.profile, 'package.json'), JSON.stringify({
+      name: 'dsh-profile-desktop',
+      private: true,
+      dependencies: { '@deepseek-ai/dsh-base': '0.2.1', '@deepseek-ai/dsh-web-app': '0.2.1' },
+      dsh: { profile: { bundles: ['@deepseek-ai/dsh-base', '@deepseek-ai/dsh-web-app', '@vendor/extra'] } },
+    }))
+
+    await manager.applyRelease()
+
+    const bundles = bundlesOf(manager)
+    expect(bundles).toContain(PRODUCT)
+    // Nothing the user selected is dropped or reordered.
+    expect(bundles.slice(0, 3)).toEqual(['@deepseek-ai/dsh-base', '@deepseek-ai/dsh-web-app', '@vendor/extra'])
+    // Untouched manifest fields survive.
+    const manifest = JSON.parse(readFileSync(join(manager.paths.profile, 'package.json'), 'utf8')) as {
+      dependencies: Record<string, string>
+    }
+    expect(manifest.dependencies['@deepseek-ai/dsh-web-app']).toBe('0.2.1')
+  })
+
+  it('keeps the product bundle after a recovery reset', async () => {
+    const { manager } = setup()
+    await manager.applyRelease()
+    await manager.disableAllPlugins()
+    expect(bundlesOf(manager)).toEqual(template)
+    // The recovery path resets to the product template, not the generic Web one.
+    expect(bundlesOf(manager)).toContain(PRODUCT)
+  })
+
+  it('does not overwrite an unreadable profile manifest', async () => {
+    const { manager } = setup()
+    mkdirSync(manager.paths.profile, { recursive: true })
+    writeFileSync(join(manager.paths.profile, 'package.json'), '{broken')
+    await expect(manager.applyRelease()).resolves.toBeUndefined()
+    expect(readFileSync(join(manager.paths.profile, 'package.json'), 'utf8')).toBe('{broken')
   })
 })

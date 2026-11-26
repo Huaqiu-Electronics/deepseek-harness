@@ -1,6 +1,6 @@
-DeepSeek Harness
-DeepSeek Harness
-Welcome to DeepSeek Harness
+Huaqiu Electronic Design Agent Platform
+Huaqiu Electronic Design Agent Platform
+Welcome to Huaqiu Electronic Design Agent Platform
 Build potential. Explore intelligence.
 Sign in
 Add API Key

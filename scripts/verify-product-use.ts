@@ -1,6 +1,7 @@
 /** Check that maintained packages have effective product use or an explicit non-default role. */
 
 import { existsSync, globSync, readFileSync, statSync } from 'node:fs'
+import { createRequire } from 'node:module'
 import { dirname, extname, relative, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { JSDOM } from 'jsdom'
@@ -193,11 +194,52 @@ export function verifyProductUse(
   ]
   if (!isRecord(templates)) throw new Error(`${PROFILE_SOURCE}: PROFILE_TEMPLATES must be a literal object`)
   for (const name of PROFILES) if (!isRecord(templates[name])) failures.push(`${PROFILE_SOURCE}: missing shipped ${name} profile`)
+  /**
+   * Read a bundle package the installation carries but this workspace does not build.
+   *
+   * Anchored on the same `apps/cli/package.json` the runtime uses (with the
+   * workspace root as a hoisting fallback), so the check follows the exact
+   * resolution order a profile boot would.
+   */
+  const installedBundle = (name: string): Package | undefined => {
+    for (const anchor of [resolve(root, 'apps/cli/package.json'), resolve(root, 'package.json')]) {
+      try {
+        const manifestPath = createRequire(anchor).resolve(`${name}/package.json`)
+        const manifest = JSON.parse(readFileSync(manifestPath, 'utf8')) as {
+          dsh?: { bundle?: DshBundleManifest; client?: unknown }
+        }
+        if (manifest.dsh?.bundle === undefined) return undefined
+        return {
+          directory: dirname(manifestPath),
+          name,
+          bundle: manifest.dsh.bundle,
+          client: manifest.dsh.client !== undefined,
+          generatedRemote: false,
+        }
+      } catch {
+        // Not resolvable from this anchor; fall through to the next one.
+      }
+    }
+    return undefined
+  }
   const layers = (names: readonly string[], reach: Reachability): PatchOptions[][] => names.flatMap((name) => {
     const pkg = packages.get(name)
-    if (pkg?.bundle === undefined) { failures.push(`${PROFILE_SOURCE}: ${name} must declare dsh.bundle.patch`); return [] }
-    reach.packages.add(pkg.directory)
-    return [bundlePatchPaths(resolve(root, pkg.directory), pkg.bundle).flatMap((path) => {
+    // A shipped template may name a bundle the installation carries but this
+    // workspace does not build — a third-party product package published to npm
+    // and declared by apps/cli. Resolve it the way the runtime does, through the
+    // installation anchor, instead of reporting it as a missing patch.
+    const external = pkg === undefined ? installedBundle(name) : undefined
+    const bundle = pkg?.bundle ?? external?.bundle
+    const directory = pkg?.directory ?? external?.directory
+    if (bundle === undefined || directory === undefined) {
+      failures.push(pkg === undefined && external === undefined
+        ? `${PROFILE_SOURCE}: ${name} is neither a workspace package nor installed in the installation`
+        : `${PROFILE_SOURCE}: ${name} must declare dsh.bundle.patch`)
+      return []
+    }
+    // Reachability is accounted in workspace-relative terms only.
+    if (pkg !== undefined) reach.packages.add(pkg.directory)
+    return [bundlePatchPaths(resolve(root, directory), bundle).flatMap((path) => {
       configs.add(path)
       return loadOverlayPatches('verify-product-use', path)
     })]
