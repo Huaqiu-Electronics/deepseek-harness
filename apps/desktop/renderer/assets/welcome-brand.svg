@@ -6,5 +6,5 @@
 <rect x="0" y="2" width="36" height="36" rx="8" fill="#c7000b"/>
 <text x="18" y="27" text-anchor="middle" class="word" font-size="17" font-weight="500" letter-spacing="0.5">HQ</text>
 <text x="50" y="28" class="word" font-size="24" font-weight="500" letter-spacing="1.2">HUAQIU</text>
-<text x="176" y="27" class="word" font-size="20" font-weight="500" letter-spacing="0.3" fill="#d7dce3">HARDWARE ENGINEERING</text>
+<text x="176" y="26" class="word" font-size="13" font-weight="500" letter-spacing="0.2" fill="#d7dce3">ELECTRONIC DESIGN AGENT PLATFORM</text>
 </svg>

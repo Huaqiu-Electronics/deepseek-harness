@@ -6,6 +6,6 @@
  * package name `@deepseek-ai/dsh-desktop` unchanged — Electron derives `userData` from it.
  */
 
-export const DESKTOP_PRODUCT_NAME = 'Huaqiu Hardware Engineering'
+export const DESKTOP_PRODUCT_NAME = 'Huaqiu Electronic Design Agent Platform'
 
 export const DESKTOP_PROTOCOL_SCHEME = 'huaqiu'

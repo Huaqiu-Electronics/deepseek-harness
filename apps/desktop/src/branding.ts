@@ -12,7 +12,7 @@
  */
 
 /** Product name shown in the About panel, installer and window title. */
-export const DESKTOP_PRODUCT_NAME = 'Huaqiu Hardware Engineering'
+export const DESKTOP_PRODUCT_NAME = 'Huaqiu Electronic Design Agent Platform'
 
 /** OS URL scheme this distribution claims (`huaqiu://open`). */
 export const DESKTOP_PROTOCOL_SCHEME = 'huaqiu'

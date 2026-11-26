@@ -1,6 +1,6 @@
 [
   {
-    "label": "关于 Huaqiu Hardware Engineering",
+    "label": "关于 Huaqiu Electronic Design Agent Platform",
     "role": "about"
   },
   {
@@ -24,7 +24,7 @@
   },
   {
     "role": "hide",
-    "label": "隐藏 Huaqiu Hardware Engineering"
+    "label": "隐藏 Huaqiu Electronic Design Agent Platform"
   },
   {
     "role": "hideOthers",
@@ -39,6 +39,6 @@
   },
   {
     "role": "quit",
-    "label": "退出 Huaqiu Hardware Engineering"
+    "label": "退出 Huaqiu Electronic Design Agent Platform"
   }
 ]

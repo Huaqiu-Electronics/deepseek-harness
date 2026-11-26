@@ -1,5 +1,5 @@
 /**
- * Verify the Huaqiu Hardware Engineering Desktop distribution's static contract.
+ * Verify the Huaqiu Electronic Design Agent Platform Desktop distribution's static contract.
  *
  * The product bundle `@huaqiu/hardware-engineering` is published to the registry, so
  * the distribution must consume it through plain registry resolution: an exact
@@ -231,15 +231,19 @@ export async function verifyHuaqiuDesktopDistribution(root: string): Promise<Dis
   const product = readText(join(root, 'apps/desktop/scripts/desktop-product.mjs')) ?? ''
   const runtimeBranding = readText(join(root, 'apps/desktop/src/branding.ts')) ?? ''
   const builderConfig = readText(join(root, 'apps/desktop/scripts/electron-builder-config.mjs')) ?? ''
+  const webDocument = readText(join(root, 'apps/desktop/src/web-document.ts')) ?? ''
+  const mainProcess = readText(join(root, 'apps/desktop/src/main.ts')) ?? ''
   const identity: string[] = []
-  if (!product.includes("DESKTOP_PRODUCT_NAME = 'Huaqiu Hardware Engineering'")) identity.push('scripts/desktop-product.mjs does not name the Huaqiu product')
+  if (!product.includes("DESKTOP_PRODUCT_NAME = 'Huaqiu Electronic Design Agent Platform'")) identity.push('scripts/desktop-product.mjs does not name the Huaqiu product')
   if (!product.includes("DESKTOP_PROTOCOL_SCHEME = 'huaqiu'")) identity.push('scripts/desktop-product.mjs does not claim the huaqiu scheme')
-  if (!runtimeBranding.includes("DESKTOP_PRODUCT_NAME = 'Huaqiu Hardware Engineering'")) identity.push('src/branding.ts disagrees with the packaging product name')
+  if (!runtimeBranding.includes("DESKTOP_PRODUCT_NAME = 'Huaqiu Electronic Design Agent Platform'")) identity.push('src/branding.ts disagrees with the packaging product name')
   if (!runtimeBranding.includes("DESKTOP_PROTOCOL_SCHEME = 'huaqiu'")) identity.push('src/branding.ts disagrees with the packaging URL scheme')
   if (!builderConfig.includes('productName: DESKTOP_PRODUCT_NAME')) identity.push('the installer does not take its product name from the Huaqiu identity')
   if (!builderConfig.includes('schemes: [DESKTOP_PROTOCOL_SCHEME]')) identity.push('the installer does not register the huaqiu URL scheme')
-  if (!builderConfig.includes('huaqiu-hardware-engineering-')) identity.push('artifact names are not branded')
+  if (!builderConfig.includes('huaqiu-electronic-design-agent-platform-')) identity.push('artifact names are not branded')
   if (/deepseek\.com|download\.deepseek/u.test(builderConfig)) identity.push('the build configuration names an official DeepSeek origin')
+  if (!webDocument.includes('HUAQIU_WEB_BRANDING')) identity.push('the Web entry has no Huaqiu boot branding override')
+  if (!mainProcess.includes('HUAQIU_WEB_BRANDING')) identity.push('the Desktop shell does not apply the Huaqiu Web boot branding')
   check('application-identity', identity.length === 0 ? undefined : identity.join('; '))
   const officialStrings = (readText(join(root, 'apps/desktop/src/locale.ts')) ?? '').includes('DeepSeek Harness')
   check('runtime-strings-rebranded', officialStrings ? 'apps/desktop/src/locale.ts still carries "DeepSeek Harness"' : undefined)

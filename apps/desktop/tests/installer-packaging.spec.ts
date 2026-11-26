@@ -52,9 +52,9 @@ describe('installer preparation preserves application dependencies', () => {
       })
       const appInfo = new AppInfo(metadataPackager, undefined)
       expect(appInfo.companyName).toBe('Huaqiu Electronics')
-      expect(appInfo.copyright).toBe(`Copyright © ${new Date().getFullYear()} Huaqiu Hardware Engineering`)
+      expect(appInfo.copyright).toBe(`Copyright © ${new Date().getFullYear()} Huaqiu Electronic Design Agent Platform`)
       if (platform === 'win32') {
-        expect(expandMacro(config.nsis.uninstallDisplayName, null, appInfo, {}, false)).toBe('Huaqiu Hardware Engineering')
+        expect(expandMacro(config.nsis.uninstallDisplayName, null, appInfo, {}, false)).toBe('Huaqiu Electronic Design Agent Platform')
         expect(config.nsis.installerLanguages).toEqual(readInstallerLocales().map(locale => locale.id))
       }
       const aboutIcon = config.extraResources.find(resource => resource.to === 'icon.png')
@@ -99,7 +99,7 @@ describe('installer preparation preserves application dependencies', () => {
       DSH_DESKTOP_TARGET_ARCH: 'x64',
       DSH_DESKTOP_UNSIGNED: '1',
     }, 'win32', 'x64')
-    expect(config.artifactName).toBe('huaqiu-hardware-engineering-${version}-${os}-${arch}-unsigned.${ext}')
+    expect(config.artifactName).toBe('huaqiu-electronic-design-agent-platform-${version}-${os}-${arch}-unsigned.${ext}')
   })
 
   it('packages every preload entry point the shell loads', async () => {

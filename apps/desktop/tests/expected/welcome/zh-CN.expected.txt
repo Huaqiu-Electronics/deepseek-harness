@@ -1,6 +1,6 @@
-Huaqiu Hardware Engineering
-Huaqiu Hardware Engineering
-欢迎使用 Huaqiu Hardware Engineering
+Huaqiu Electronic Design Agent Platform
+Huaqiu Electronic Design Agent Platform
+欢迎使用 Huaqiu Electronic Design Agent Platform
 组装无限可能，共探智能上限
 登录
 添加 API Key

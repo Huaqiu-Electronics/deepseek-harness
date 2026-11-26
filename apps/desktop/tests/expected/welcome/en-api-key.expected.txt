@@ -1,7 +1,7 @@
-Huaqiu Hardware Engineering
-Huaqiu Hardware Engineering
+Huaqiu Electronic Design Agent Platform
+Huaqiu Electronic Design Agent Platform
 Add an API key to get started
-Configure official DeepSeek models to start using Huaqiu Hardware Engineering
+Configure official model credentials to start using Huaqiu Electronic Design Agent Platform
 Enter API key [password]
 Save and continue [disabled]
 Set up later

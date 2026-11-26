@@ -1,5 +1,5 @@
-Huaqiu Hardware Engineering
-Huaqiu Hardware Engineering
+Huaqiu Electronic Design Agent Platform
+Huaqiu Electronic Design Agent Platform
 登录已超时
 重新登录
 添加 API Key
