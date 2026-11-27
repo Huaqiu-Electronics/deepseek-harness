@@ -102,6 +102,16 @@ export interface DshDesktopProductApi {
    * @returns `name=value` fields separated by `; `, with no hostname, user name, or serial number.
    */
   deviceInfo(): Promise<string>
+  /**
+   * Let the loaded plugin supply the caption menu's Place Order workflow.
+   *
+   * The shell has no order logic of its own: it stores the callback and runs it
+   * when the entry is pressed. Declared here because a page global cannot cross
+   * `contextIsolation`, while a bridged callback can.
+   * @param handler - starts the plugin's own workflow; `false` when it could not.
+   * @returns withdrawal of the registration, called when the plugin unloads.
+   */
+  registerPlaceOrder(handler: () => boolean): () => void
   readonly updates: {
     readonly channels: DesktopChannelBridge
     status(): Promise<DesktopUpdatePresentation>

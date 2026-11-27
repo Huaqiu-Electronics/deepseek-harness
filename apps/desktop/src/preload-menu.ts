@@ -2,23 +2,7 @@
 import { ipcRenderer } from 'electron'
 import { DESKTOP_IPC } from './ipc.ts'
 import { resolveDesktopLocale } from './locale.ts'
-
-/**
- * The one thing the shell asks the Huaqiu plugin for (PO-02).
- *
- * Deliberately a handle rather than a URL, an IPC channel or a menu-extension
- * framework: the plugin installs `window.huaqiu` while it is active, so the
- * caption menu can start the workflow without knowing a single project, order
- * type or hqpcb URL. When the plugin is absent the handle is absent and the
- * menu says so instead of doing nothing.
- */
-interface PlaceOrderHandle {
-  placeOrder?: () => boolean
-}
-
-function placeOrderHandle(): PlaceOrderHandle | undefined {
-  return (window as unknown as { huaqiu?: PlaceOrderHandle }).huaqiu
-}
+import { runPlaceOrderHandler } from './preload-place-order.ts'
 
 /** Cart glyph, drawn once at 14px like the app's other menu icons. */
 const CART_ICON = `
@@ -150,10 +134,11 @@ export function installWindowsMenu(): { update(): void; dispose(): void } {
   placeOrderButton.addEventListener('pointerdown', (event) => { event.preventDefault() })
   placeOrderButton.addEventListener('mousedown', (event) => { event.preventDefault() })
   const runPlaceOrder = (): void => {
-    const handle = placeOrderHandle()
-    if (handle?.placeOrder === undefined) { showNotice(messages.placeOrderUnavailable); return }
+    // The plugin registers through `dshDesktop.registerPlaceOrder`; a page-set
+    // global would not survive `contextIsolation`. No registration means no
+    // plugin, which the notice says plainly.
     try {
-      if (handle.placeOrder() === false) showNotice(messages.placeOrderUnavailable)
+      if (!runPlaceOrderHandler()) showNotice(messages.placeOrderUnavailable)
     } catch (error) {
       console.error('Desktop place order menu failed', error)
       showNotice(messages.placeOrderFailed)

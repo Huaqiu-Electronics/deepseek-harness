@@ -11,6 +11,7 @@ import { syncNativeTheme } from './preload-theme.ts'
 import { syncWindowsAppearance } from './preload-windows.ts'
 import { installMandatoryUpdateOverlay } from './preload-mandatory-overlay.ts'
 import { createDesktopBrowserBridge } from './preload-browser.ts'
+import { registerPlaceOrderHandler } from './preload-place-order.ts'
 import type { FileDragHandle } from '@deepseek-ai/dsh-util-file-drag'
 
 function createProductApi(): DshDesktopProductApi {
@@ -34,6 +35,7 @@ function createProductApi(): DshDesktopProductApi {
       }) },
     },
     deviceInfo: () => ipcRenderer.invoke(DESKTOP_IPC.deviceInfo) as Promise<string>,
+    registerPlaceOrder: handler => registerPlaceOrderHandler(handler),
     keyboard: {
       closeWindow: revision => ipcRenderer.invoke(DESKTOP_IPC.shortcutsCloseWindow, revision) as Promise<void>,
       subscribe: (listener) => {

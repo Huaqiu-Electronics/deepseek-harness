@@ -1,11 +1,16 @@
 // @vitest-environment jsdom
 import { afterEach, beforeEach, expect, it, vi } from 'vitest'
 import { installWindowsMenu } from '../src/preload-menu.ts'
+import { registerPlaceOrderHandler } from '../src/preload-place-order.ts'
 import { DESKTOP_IPC } from '../src/ipc.ts'
 
 const invoke = vi.hoisted(() => vi.fn<(...args: unknown[]) => Promise<void>>())
 vi.mock('electron', () => ({ ipcRenderer: { invoke } }))
 let menu: ReturnType<typeof installWindowsMenu> | undefined
+let unregister: (() => void) | undefined
+
+/** Stand in for the plugin's `dshDesktop.registerPlaceOrder` call. */
+const register = (handler: () => boolean): void => { unregister = registerPlaceOrderHandler(handler) }
 
 beforeEach(() => {
   const appSeat = document.createElement('div')
@@ -42,6 +47,8 @@ it('does not mount menus after a loading document is disposed', async () => {
 afterEach(() => {
   menu?.dispose()
   menu = undefined
+  unregister?.()
+  unregister = undefined
   document.body.replaceChildren()
   document.documentElement.lang = ''
   vi.restoreAllMocks()
@@ -51,7 +58,7 @@ afterEach(() => {
 
 it('runs the loaded plugin workflow from the Place Order entry without opening a popup', () => {
   const placeOrder = vi.fn(() => true)
-  vi.stubGlobal('huaqiu', { placeOrder })
+  register(placeOrder)
   menu = installWindowsMenu()
   const button = document.querySelector('[data-windows-menu]')!
     .shadowRoot!.querySelectorAll('button')[2]!
@@ -75,10 +82,25 @@ it('explains that the plugin is not loaded instead of silently doing nothing', (
   expect(invoke).not.toHaveBeenCalled()
 })
 
+it('forgets the workflow as soon as the plugin withdraws it', () => {
+  register(() => true)
+  menu = installWindowsMenu()
+  const host = document.querySelector('[data-windows-menu]')!
+  const button = host.shadowRoot!.querySelectorAll('button')[2]!
+  const notice = host.shadowRoot!.querySelector('[data-menu-notice]') as HTMLElement
+  button.click()
+  expect(notice.hidden).toBe(true)
+  unregister?.()
+  unregister = undefined
+  button.click()
+  expect(notice.hidden).toBe(false)
+  expect(notice.textContent).toBe('Place Order is unavailable: the Huaqiu EDA plugin is not loaded yet.')
+})
+
 it('reports a rejected workflow and leaves the entry ready for a retry', () => {
   const error = new Error('panel closed')
   const log = vi.spyOn(console, 'error').mockImplementation(() => {})
-  vi.stubGlobal('huaqiu', { placeOrder: () => { throw error } })
+  register(() => { throw error })
   menu = installWindowsMenu()
   const host = document.querySelector('[data-windows-menu]')!
   const button = host.shadowRoot!.querySelectorAll('button')[2]!
@@ -90,7 +112,7 @@ it('reports a rejected workflow and leaves the entry ready for a retry', () => {
 
 it('cycles arrow keys past Place Order and runs it with Enter', () => {
   const placeOrder = vi.fn(() => true)
-  vi.stubGlobal('huaqiu', { placeOrder })
+  register(placeOrder)
   menu = installWindowsMenu()
   const host = document.querySelector('[data-windows-menu]')!
   const buttons = Array.from(host.shadowRoot!.querySelectorAll('button'))
