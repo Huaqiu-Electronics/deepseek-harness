@@ -87,7 +87,7 @@ it.each(['mac-arm64', 'mac-x64', 'win-x64'] as const)('prepares %s with one pnpm
   expect(existsSync(join(runtime, 'primary-runtime', 'dependencies', 'pnpm', 'bin', 'pnpm.mjs'))).toBe(true)
   expect(existsSync(join(runtime, 'bin', 'node'))).toBe(true)
   expect(existsSync(join(runtime, 'cli', 'bin', windows ? 'dsh.cmd' : 'dsh'))).toBe(true)
-  expect(readFileSync(join(runtime, 'cli', 'command-manager.js'), 'utf8')).toBe('command manager fixture')
+  expect(readFileSync(join(runtime, 'cli', 'command-manager.mjs'), 'utf8')).toBe('command manager fixture')
   expect(existsSync(join(runtime, 'cli', 'command-path.ps1'))).toBe(true)
   expect(JSON.parse(readFileSync(join(runtime, 'versions.json'), 'utf8'))).toEqual({
     schemaVersion: 1, node: '24.18.1', pnpm: '11.7.0',
@@ -148,7 +148,7 @@ it.each(['electron', 'primary'] as const)('overlaps Windows payloads and waits f
     expect(existsSync(join(state.root, 'runtime', 'versions.json'))).toBe(false)
     ;(last === 'electron' ? electron : primary).resolve(undefined)
     expect(await outcome).toBeUndefined()
-    expect(existsSync(join(state.root, 'runtime', 'cli', 'command-manager.js'))).toBe(true)
+    expect(existsSync(join(state.root, 'runtime', 'cli', 'command-manager.mjs'))).toBe(true)
     expect(existsSync(join(state.root, 'runtime', 'versions.json'))).toBe(true)
   } finally {
     electron.resolve(undefined)

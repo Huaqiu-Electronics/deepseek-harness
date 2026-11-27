@@ -63,7 +63,7 @@ async function fixture(options: {
     external.shell = shell
   }
   await writeFile(join(worker, 'state.json'), JSON.stringify({ state, failure: options.failure, elevate: options.elevate }))
-  await writeFile(join(worker, 'command-manager.js'), [
+  await writeFile(join(worker, 'command-manager.mjs'), [
     "import { readFileSync, appendFileSync, existsSync } from 'node:fs'",
     "import { join } from 'node:path'",
     "const { state, failure, elevate } = JSON.parse(readFileSync(join(import.meta.dirname, 'state.json'), 'utf8'))",

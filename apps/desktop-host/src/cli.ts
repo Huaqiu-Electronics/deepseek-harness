@@ -1,7 +1,9 @@
 /** Public dsh commands using the immutable runtime carried by the Desktop installation. */
 
 import { delimiter, dirname, join, resolve } from 'node:path'
+import { homedir } from 'node:os'
 import { runCli } from '@deepseek-ai/dsh/lib/bin.js'
+import { applyProductHome } from '@deepseek-ai/dsh-home-paths'
 import { installOfficeEngineResolution, runtimeArchivePath } from './office-engine.ts'
 
 /**
@@ -11,6 +13,10 @@ import { installOfficeEngineResolution, runtimeArchivePath } from './office-engi
  * @returns Completion of the selected CLI command; profile plugins own their process lifetime.
  */
 export async function runDesktopCli(runtimeDir: string, supportDir: string): Promise<void> {
+  // The terminal command the desktop installs must see the same home as the app
+  // itself (`~/.huaqiu-eda`), otherwise `dsh` would open a second, empty profile
+  // tree under the upstream default. An explicit DSH_HOME still wins.
+  applyProductHome(process.env, homedir())
   installOfficeEngineResolution(runtimeDir)
   await runCli({
     manageDesktopProfile: true,

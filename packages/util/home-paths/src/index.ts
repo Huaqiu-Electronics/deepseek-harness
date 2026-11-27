@@ -122,6 +122,38 @@ function rootDisplay(resolvedRoot: string, defaultRoot: string, defaultLabel: st
 }
 
 /**
+ * Directory a HuaQiu distribution owns under the OS home for its Harness state.
+ *
+ * The upstream default (`~/.dsh`) is deliberately not shared: a machine that also
+ * runs the official DeepSeek Harness would otherwise mix profiles, sessions,
+ * credentials, plugin installs and toolchain downloads between two products.
+ * Product entry points (the desktop shell and the packaged CLI) point the ambient
+ * `DSH_HOME` at this directory, which every descendant then inherits.
+ */
+export const HUAQIU_HOME_DIR_NAME = '.huaqiu-eda'
+
+/**
+ * Point one process at the product's own Harness home unless the user chose one.
+ *
+ * Call this once at a product entry point, before any path under the home is read:
+ * it completes `DSH_HOME` in place so later resolution — and every child process —
+ * inherits the same root. An explicitly configured `DSH_HOME` always wins, and a
+ * blank one counts as unset, matching {@link resolveDshHome}.
+ * @param env - environment mapping to complete in place.
+ * @param home - OS home directory the product root lives under.
+ * @returns the absolute Harness home this process will use.
+ */
+export function applyProductHome(env: Record<string, string | undefined>, home: string): string {
+  const configured = env.DSH_HOME
+  const selected = configured !== undefined && configured.trim() !== ''
+    ? expandHomePath(configured)
+    : join(home, HUAQIU_HOME_DIR_NAME)
+  const resolved = resolve(selected)
+  env.DSH_HOME = resolved
+  return resolved
+}
+
+/**
  * Resolve the single-root DeepSeek Harness home.
  *
  * Precedence, highest first: an explicit configured path, `$DSH_HOME`, then

@@ -44,7 +44,12 @@ function prepareCli({ platform, arch }: DesktopTarget): void {
     ], { encoding: 'utf8' }).trim()
     prepareCommandLink(cli, arch, minimumVersion)
   }
-  cpSync(join(import.meta.dirname, '..', 'lib', 'command-manager-entry.js'), join(cli, 'command-manager.js'))
+  // `.mjs`, not `.js`: this worker is ESM and the packaged `runtime/cli` directory
+  // carries no `package.json` type marker, so a `.js` copy is parsed as CommonJS
+  // and dies on its first `import` — the desktop then reports the opaque
+  // "Command-manager process failed." The extension makes the module type
+  // unambiguous wherever the tree is copied.
+  cpSync(join(import.meta.dirname, '..', 'lib', 'command-manager-entry.js'), join(cli, 'command-manager.mjs'))
   cpSync(join(import.meta.dirname, 'command-path.ps1'), join(cli, 'command-path.ps1'))
 }
 

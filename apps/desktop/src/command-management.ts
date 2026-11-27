@@ -137,7 +137,9 @@ export class DesktopCommandManager {
 
   private async worker(operation: string, expected?: string, elevated = false): Promise<CommandState> {
     const node = join(this.options.resources, 'runtime', 'primary-runtime', 'dependencies', 'node', 'bin', process.platform === 'win32' ? 'node.exe' : 'node')
-    const entry = join(this.options.resources, 'runtime', 'cli', 'command-manager.js')
+    // The worker is ESM: `.mjs` keeps it loadable in a directory with no
+    // `package.json` type marker (`.js` was parsed as CommonJS and crashed).
+    const entry = join(this.options.resources, 'runtime', 'cli', 'command-manager.mjs')
     let stdout: string
     try {
       if (elevated) {
@@ -155,7 +157,15 @@ export class DesktopCommandManager {
         throw new CommandWorkerError('ECANCELED', 'Command authorization was cancelled.')
       }
       if (object(error) && typeof error.stdout === 'string' && error.stdout.trim().startsWith('{')) stdout = error.stdout
-      else throw new CommandWorkerError('EIO', 'Command-manager process failed.')
+      else {
+        // A worker that never produced a response died before it could answer
+        // (missing file, wrong module type, spawn refusal). Its stderr is the only
+        // evidence, so keep the first lines of it instead of an opaque "failed".
+        const stderr = object(error) && typeof error.stderr === 'string'
+          ? error.stderr.trim().split('\n').slice(0, 3).join(' ').slice(0, 200)
+          : ''
+        throw new CommandWorkerError('EIO', stderr === '' ? 'Command-manager process failed.' : `Command-manager process failed: ${stderr}`)
+      }
     }
     const response: unknown = JSON.parse(stdout.trim())
     if (!object(response) || typeof response.ok !== 'boolean') throw new Error('Invalid command-manager response.')

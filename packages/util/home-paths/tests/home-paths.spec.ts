@@ -7,7 +7,9 @@ import {
   DEFAULT_AGENTS_HOME_DISPLAY,
   DEFAULT_DSH_HOME_DISPLAY,
   DSH_HOME_DIR_NAME,
+  HUAQIU_HOME_DIR_NAME,
   agentsHomeDisplay,
+  applyProductHome,
   canonicalizeWatchPath,
   defaultAgentsHome,
   defaultDshHome,
@@ -28,6 +30,23 @@ describe('dsh path helpers', () => {
     expect(DSH_HOME_DIR_NAME).toBe('.dsh')
     expect(DEFAULT_DSH_HOME_DISPLAY).toBe('~/.dsh')
     expect(defaultDshHome()).toBe(join(homedir(), '.dsh'))
+  })
+
+  it('points a product build at its own home without overriding an explicit one', () => {
+    // The fork's entry points call this once, so `~/.dsh` (the upstream default)
+    // is never used by the HuaQiu distribution — two products can share a machine.
+    expect(applyProductHome({}, '/home/user')).toBe(resolve('/home/user', HUAQIU_HOME_DIR_NAME))
+    expect(HUAQIU_HOME_DIR_NAME).toBe('.huaqiu-eda')
+
+    const blank = applyProductHome({ DSH_HOME: '   ' }, '/home/user')
+    expect(blank).toBe(resolve('/home/user', '.huaqiu-eda'))
+    expect(resolveDshHome(undefined, { DSH_HOME: blank })).toBe(blank)
+
+    // A user who chose a root keeps it, and children inherit the completed variable.
+    const env: Record<string, string | undefined> = { DSH_HOME: '~/custom-home' }
+    const chosen = applyProductHome(env, '/home/user')
+    expect(chosen).toBe(join(homedir(), 'custom-home'))
+    expect(env.DSH_HOME).toBe(chosen)
   })
 
   it('expands tilde paths without changing non-tilde paths', () => {
