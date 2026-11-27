@@ -566,10 +566,12 @@ function environmentWithoutCommandGitConfig() {
 function runLefthook(root, lefthook) {
   const args = ['install', '--force']
   const env = environmentWithoutCommandGitConfig()
-  // Node refuses to spawn Windows `.cmd` shims directly; the quoted path is
-  // re-parsed by cmd.exe, while POSIX can execute its extensionless shim.
+  // Node refuses to spawn Windows `.cmd` shims directly, so cmd.exe re-parses
+  // them. The args are this script's own literals and the path is quoted, so
+  // they are passed as one command string instead of as an args array — an
+  // args array next to `shell: true` is what Node warns about (DEP0190).
   const result = process.platform === 'win32'
-    ? spawnSync(`"${lefthook}"`, args, { cwd: root, env, stdio: 'inherit', shell: true })
+    ? spawnSync(`"${lefthook}" ${args.join(' ')}`, { cwd: root, env, stdio: 'inherit', shell: true })
     : spawnSync(lefthook, args, { cwd: root, env, stdio: 'inherit' })
   if (result.status !== 0) throw commandFailure(lefthook, args, result)
 }

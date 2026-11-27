@@ -109,6 +109,7 @@ export function installWindowsMenu(): { update(): void; dispose(): void } {
         event.preventDefault()
         const step = event.key === 'ArrowLeft' ? -1 : 1
         const next = buttons[(buttons.indexOf(button) + step + buttons.length) % buttons.length]
+        if (next === undefined) return
         button.tabIndex = -1
         next.tabIndex = 0
         next.focus()
@@ -164,6 +165,7 @@ export function installWindowsMenu(): { update(): void; dispose(): void } {
       event.preventDefault()
       const step = event.key === 'ArrowLeft' ? -1 : 1
       const next = buttons[(buttons.indexOf(placeOrderButton) + step + buttons.length) % buttons.length]
+      if (next === undefined) return
       placeOrderButton.tabIndex = -1
       next.tabIndex = 0
       next.focus()
