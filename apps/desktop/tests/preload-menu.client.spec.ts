@@ -49,6 +49,61 @@ afterEach(() => {
   vi.clearAllMocks()
 })
 
+it('runs the loaded plugin workflow from the Place Order entry without opening a popup', () => {
+  const placeOrder = vi.fn(() => true)
+  vi.stubGlobal('huaqiu', { placeOrder })
+  menu = installWindowsMenu()
+  const button = document.querySelector('[data-windows-menu]')!
+    .shadowRoot!.querySelectorAll('button')[2]!
+  button.click()
+  button.click()
+  expect(placeOrder).toHaveBeenCalledTimes(2)
+  // The shell asks the plugin and stops there: no project, no order, no IPC.
+  expect(invoke).not.toHaveBeenCalled()
+  expect(button.getAttribute('aria-haspopup')).toBeNull()
+})
+
+it('explains that the plugin is not loaded instead of silently doing nothing', () => {
+  menu = installWindowsMenu()
+  const host = document.querySelector('[data-windows-menu]')!
+  const button = host.shadowRoot!.querySelectorAll('button')[2]!
+  const notice = host.shadowRoot!.querySelector('[data-menu-notice]') as HTMLElement
+  expect(notice.hidden).toBe(true)
+  button.click()
+  expect(notice.hidden).toBe(false)
+  expect(notice.textContent).toBe('Place Order is unavailable: the Huaqiu EDA plugin is not loaded yet.')
+  expect(invoke).not.toHaveBeenCalled()
+})
+
+it('reports a rejected workflow and leaves the entry ready for a retry', () => {
+  const error = new Error('panel closed')
+  const log = vi.spyOn(console, 'error').mockImplementation(() => {})
+  vi.stubGlobal('huaqiu', { placeOrder: () => { throw error } })
+  menu = installWindowsMenu()
+  const host = document.querySelector('[data-windows-menu]')!
+  const button = host.shadowRoot!.querySelectorAll('button')[2]!
+  const notice = host.shadowRoot!.querySelector('[data-menu-notice]') as HTMLElement
+  button.click()
+  expect(log).toHaveBeenCalledWith('Desktop place order menu failed', error)
+  expect(notice.textContent).toBe('Place Order could not be opened. Try again from the Huaqiu panel.')
+})
+
+it('cycles arrow keys past Place Order and runs it with Enter', () => {
+  const placeOrder = vi.fn(() => true)
+  vi.stubGlobal('huaqiu', { placeOrder })
+  menu = installWindowsMenu()
+  const host = document.querySelector('[data-windows-menu]')!
+  const buttons = Array.from(host.shadowRoot!.querySelectorAll('button'))
+  buttons[1]!.focus()
+  buttons[1]!.dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowRight', cancelable: true }))
+  expect(buttons[2]!.tabIndex).toBe(0)
+  buttons[2]!.dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowRight', cancelable: true }))
+  expect(buttons[0]!.tabIndex).toBe(0)
+  buttons[0]!.dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowLeft', cancelable: true }))
+  buttons[2]!.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', cancelable: true }))
+  expect(placeOrder).toHaveBeenCalledTimes(1)
+})
+
 it('localizes caption entries and removes the menu on disposal', () => {
   menu = installWindowsMenu()
   const host = document.querySelector('[data-windows-menu]')!

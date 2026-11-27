@@ -1,5 +1,17 @@
 // Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
 
-exports[`localizes caption entries and removes the menu on disposal > chinese 1`] = `"<div role="menubar" aria-label="应用菜单"><button type="button" role="menuitem" aria-haspopup="menu" aria-expanded="false" tabindex="0">应用</button><button type="button" role="menuitem" aria-haspopup="menu" aria-expanded="false" tabindex="-1">编辑</button></div>"`;
+exports[`localizes caption entries and removes the menu on disposal > chinese 1`] = `
+"<div role="menubar" aria-label="应用菜单"><button type="button" role="menuitem" aria-haspopup="menu" aria-expanded="false" tabindex="0">应用</button><button type="button" role="menuitem" aria-haspopup="menu" aria-expanded="false" tabindex="-1">编辑</button><button type="button" role="menuitem" data-place-order="" tabindex="-1" aria-label="下单" title="下单">
+<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+  <circle cx="9" cy="20" r="1.4"></circle><circle cx="18" cy="20" r="1.4"></circle>
+  <path d="M2.5 3.5h3l2.6 12.2a1.6 1.6 0 0 0 1.6 1.3h9.4a1.6 1.6 0 0 0 1.6-1.3L22 8H6.4"></path>
+</svg><span>下单</span></button></div>"
+`;
 
-exports[`localizes caption entries and removes the menu on disposal > english 1`] = `"<div role="menubar" aria-label="Application menu"><button type="button" role="menuitem" aria-haspopup="menu" aria-expanded="false" tabindex="0">Application</button><button type="button" role="menuitem" aria-haspopup="menu" aria-expanded="false" tabindex="-1">Edit</button></div>"`;
+exports[`localizes caption entries and removes the menu on disposal > english 1`] = `
+"<div role="menubar" aria-label="Application menu"><button type="button" role="menuitem" aria-haspopup="menu" aria-expanded="false" tabindex="0">Application</button><button type="button" role="menuitem" aria-haspopup="menu" aria-expanded="false" tabindex="-1">Edit</button><button type="button" role="menuitem" data-place-order="" tabindex="-1" aria-label="Place Order" title="Place Order">
+<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+  <circle cx="9" cy="20" r="1.4"></circle><circle cx="18" cy="20" r="1.4"></circle>
+  <path d="M2.5 3.5h3l2.6 12.2a1.6 1.6 0 0 0 1.6 1.3h9.4a1.6 1.6 0 0 0 1.6-1.3L22 8H6.4"></path>
+</svg><span>Place Order</span></button></div>"
+`;
